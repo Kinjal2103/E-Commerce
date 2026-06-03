@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { PRODUCTS } from '../data/products';
 import { useCart } from '../context/CartContext';
 import { ArrowLeft, CheckCircle2, Star, Check, ShoppingBag, Truck, RotateCcw, ShieldAlert } from 'lucide-react';
 
@@ -9,8 +8,10 @@ export default function ProductDetails() {
   const navigate = useNavigate();
   const { addToCart, setIsCartOpen } = useCart();
 
-  // Find matching product
-  const product = PRODUCTS.find((p) => p.id === id);
+  // Async states from backend
+  const [product, setProduct] = useState(null);
+  const [relatedProducts, setRelatedProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // Configured Product Options
   const [selectedColor, setSelectedColor] = useState('');
@@ -22,19 +23,88 @@ export default function ProductDetails() {
   const [colorWarning, setColorWarning] = useState(false);
   const [successBanner, setSuccessBanner] = useState(false);
 
-  // Set default configurations whenever product shifts
+  // Fetch product detail and matching related products from backend
   useEffect(() => {
-    if (product) {
-      setSelectedColor(product.colors && product.colors.length > 0 ? product.colors[0].name : '');
-      setSelectedSize(product.sizes && product.sizes.length > 0 ? product.sizes[0] : '');
-      setQuantity(1);
-      setActiveImage(product.imageUrl);
-      setActiveTab('details');
-      setSizeWarning(false);
+    const fetchProductDetails = async () => {
+      try {
+        setLoading(true);
+        // 1. Fetch main product details
+        const res = await fetch(`/api/products/${id}`);
+        const data = await res.json();
+        
+        if (data.success && data.product) {
+          setProduct(data.product);
+          setSelectedColor(data.product.colors && data.product.colors.length > 0 ? data.product.colors[0].name : '');
+          setSelectedSize(data.product.sizes && data.product.sizes.length > 0 ? data.product.sizes[0] : '');
+          setQuantity(1);
+          setActiveImage(data.product.imageUrl);
+          setActiveTab('details');
+
+          // 2. Fetch related products by category
+          const relatedRes = await fetch(`/api/products?category=${encodeURIComponent(data.product.category)}`);
+          const relatedData = await relatedRes.json();
+          if (relatedData.success) {
+            // Filter out current product
+            const filtered = relatedData.products.filter(p => p.id !== id).slice(0, 4);
+            setRelatedProducts(filtered);
+          }
+        } else {
+          setProduct(null);
+        }
+      } catch (err) {
+        console.error('Error loading product detail from server:', err);
+        setProduct(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProductDetails();
+    setSizeWarning(false);
+    setColorWarning(false);
+    setSuccessBanner(false);
+  }, [id]);
+
+  // Handle Add to cart selection validation
+  const handleAddToBag = () => {
+    let hasError = false;
+    if (!selectedColor) {
+      setColorWarning(true);
+      hasError = true;
+    } else {
       setColorWarning(false);
-      setSuccessBanner(false);
     }
-  }, [product]);
+
+    if (!selectedSize) {
+      setSizeWarning(true);
+      hasError = true;
+    } else {
+      setSizeWarning(false);
+    }
+
+    if (!hasError && product) {
+      addToCart(product, quantity, selectedColor, selectedSize);
+      setSuccessBanner(true);
+      setTimeout(() => setSuccessBanner(false), 3500);
+      
+      // Auto open drawer to show successful add
+      setTimeout(() => {
+        setIsCartOpen(true);
+      }, 500);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-[1280px] mx-auto px-6 py-20 text-center font-sans space-y-4">
+        <svg className="animate-spin h-8 w-8 text-black mx-auto" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+        </svg>
+        <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Loading Premium details...</p>
+      </div>
+    );
+  }
 
   if (!product) {
     return (
@@ -54,40 +124,6 @@ export default function ProductDetails() {
       </div>
     );
   }
-
-  // Handle Add to cart selection validation
-  const handleAddToBag = () => {
-    let hasError = false;
-    if (!selectedColor) {
-      setColorWarning(true);
-      hasError = true;
-    } else {
-      setColorWarning(false);
-    }
-
-    if (!selectedSize) {
-      setSizeWarning(true);
-      hasError = true;
-    } else {
-      setSizeWarning(false);
-    }
-
-    if (!hasError) {
-      addToCart(product, quantity, selectedColor, selectedSize);
-      setSuccessBanner(true);
-      setTimeout(() => setSuccessBanner(false), 3500);
-      
-      // Auto open drawer to show successful add
-      setTimeout(() => {
-        setIsCartOpen(true);
-      }, 500);
-    }
-  };
-
-  // Find related items (within identical category, excluding current product)
-  const relatedProducts = PRODUCTS.filter(
-    (p) => p.category === product.category && p.id !== product.id
-  ).slice(0, 4);
 
   return (
     <div className="max-w-[1280px] mx-auto px-6 py-6 space-y-12 font-sans">

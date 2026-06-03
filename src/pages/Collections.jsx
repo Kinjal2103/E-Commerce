@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { PRODUCTS } from '../data/products';
 import { Star, ChevronUp, ChevronDown, Sparkles } from 'lucide-react';
 
 export default function Collections() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeZone, setActiveZone] = useState('zen');
   const [expandedSpec, setExpandedSpec] = useState('materials');
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // Sync activeZone with URL params (e.g. /collections?aesthetic=zen)
   useEffect(() => {
@@ -15,6 +16,25 @@ export default function Collections() {
       setActiveZone(aestheticParam);
     }
   }, [searchParams]);
+
+  // Load products from backend Express API on mount
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch('/api/products');
+        const data = await res.json();
+        if (data.success) {
+          setProducts(data.products);
+        }
+      } catch (err) {
+        console.error('Error fetching collections products:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProducts();
+  }, []);
 
   const handleZoneSwitch = (zone) => {
     setActiveZone(zone);
@@ -27,10 +47,10 @@ export default function Collections() {
       title: 'Wabi-Sabi & Zen Sanctuary',
       subtitle: 'Organic coarse clays, natural ashwood, and silent quartz sands.',
       story: 'Rooted in transient asymmetry, natural materials, and quiet open space. Designed to foster high-key tranquility, organic comfort, and active mindfulness in the balcony or bedroom.',
-      products: PRODUCTS.filter(p => p.aesthetic === 'Japanese Zen'),
+      products: products.filter(p => p.aesthetic === 'Japanese Zen'),
       specs: [
         { id: 'materials', title: 'Unrefined Stoneware & Ashwood', text: 'Stoneware is molded manually in historic Kyoto workshops before firing. Solid Ashwood components highlight natural open grain.' },
-        { id: 'philosophy', title: 'Wabi-Sabi Aesthetic', text: 'Embracing natural imperfections, rustic tactile finishes, and raw structural beauty representing the peaceful passage of time.' },
+        { id: 'philosophy', title: 'Wabi-Sabi Aesthetic', text: 'Embracing natural imperfections, rustic tactile finishes, and raw structural beauty representing the passage of time.' },
         { id: 'designers', title: 'Kyoto Handloom & Lumina Lab', text: 'Curated in collaboration with traditional craft studios in Japan and Florentine architectural labs.' }
       ]
     },
@@ -38,7 +58,7 @@ export default function Collections() {
       title: 'Prism & Line Minimalism',
       subtitle: 'Crisp absolute whites, geometric cement, and pure smart light spectrums.',
       story: 'A disciplined purge of physical excess. Focusing entirely on essential geometric structures, zero-glare ambient glows, and clean cast concrete desks or study nodes.',
-      products: PRODUCTS.filter(p => p.aesthetic === 'Minimalist'),
+      products: products.filter(p => p.aesthetic === 'Minimalist'),
       specs: [
         { id: 'materials', title: 'Cement & Frosted Polycarbonate', text: 'Desk organizers utilize heavy micro-ground structural cement compounds. Lighting fixtures house frosted polycarbonate lenses.' },
         { id: 'philosophy', title: 'Form Follows Silence', text: 'Streamlining active task footprints to reduce mental friction and boost clean workspace focus.' },
@@ -49,7 +69,7 @@ export default function Collections() {
       title: 'Nordic Hygge & Oak Architecture',
       subtitle: 'Steam-bent solid ashwood, natural oak wood grains, and soft cognac leather saddles.',
       story: 'Warm, luminous daylight elements celebrating active family dinners, long productive desk hours, and peaceful reading sessions in deep comfortable chairs.',
-      products: PRODUCTS.filter(p => p.aesthetic === 'Scandinavian'),
+      products: products.filter(p => p.aesthetic === 'Scandinavian'),
       specs: [
         { id: 'materials', title: 'Ashwood, Oak & Cognac Leather', text: 'Chairs use steam-bent solid ashwood and vegetable-tanned leather. Table tops use thick, solid European Oak wood.' },
         { id: 'philosophy', title: 'Nordic Humanist Hygge', text: 'Warm hospitality, structural durability, and ergonomic geometry crafted to last for generations.' },
@@ -60,7 +80,7 @@ export default function Collections() {
       title: 'Polished Brass & Velvet Luxury',
       subtitle: 'Hand-welded brass branches, mouth-blown borosilicate spheres, and deep plush velvets.',
       story: 'Daring high-contrast statement pieces combining slender elegant brass profiles with deep velvet cushions and smart, responsive acoustics.',
-      products: PRODUCTS.filter(p => p.aesthetic === 'Luxury Modern'),
+      products: products.filter(p => p.aesthetic === 'Luxury Modern'),
       specs: [
         { id: 'materials', title: 'Brass, Velvet & Borosilicate Glass', text: 'Glass globes are hand-blown from premium borosilicate. Velvet fabric is woven tightly to resist spillages.' },
         { id: 'philosophy', title: 'Statement Sophistication', text: 'Expressive elegance, high-lux contrast, and supreme craft designed to serve as central architectural talking points.' },
@@ -131,7 +151,7 @@ export default function Collections() {
               return (
                 <div
                   key={spec.id}
-                  className="border border-slate-100/80 rounded bg-slate-50/50 hover:bg-slate-50 transition-colors"
+                  className="border border-slate-105 rounded bg-slate-50/50 hover:bg-slate-50 transition-colors"
                 >
                   <button
                     onClick={() => setExpandedSpec(isOpen ? null : spec.id)}
@@ -162,48 +182,60 @@ export default function Collections() {
               Curated Design Artifacts
             </h3>
             <span className="text-xs font-mono text-slate-400">
-              {activeCollection.products.length} Items Listed
+              {loading ? '...' : activeCollection.products.length} Items Listed
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {activeCollection.products.map((p) => (
-              <Link
-                key={p.id}
-                to={`/product/${p.id}`}
-                className="group cursor-pointer bg-white rounded-lg border border-slate-200/50 overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 block"
-              >
-                {/* Images */}
-                <div className="aspect-[4/3] bg-slate-100 relative overflow-hidden">
-                  <img
-                    src={p.imageUrl}
-                    alt={p.name}
-                    className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500"
-                    referrerPolicy="no-referrer"
-                  />
-                  
-                  <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-3">
-                    <span className="bg-white/90 text-black text-[10px] font-bold tracking-wider uppercase px-4 py-2 rounded shadow-md">
-                      Interactive Overview
-                    </span>
-                  </div>
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="aspect-[4/3] bg-white border border-slate-100 rounded-lg animate-pulse flex flex-col justify-end p-4 space-y-3">
+                  <div className="h-4 w-1/3 bg-slate-200 rounded"></div>
+                  <div className="h-6 w-3/4 bg-slate-200 rounded"></div>
+                  <div className="h-4 w-1/2 bg-slate-200 rounded"></div>
                 </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {activeCollection.products.map((p) => (
+                <Link
+                  key={p.id}
+                  to={`/product/${p.id}`}
+                  className="group cursor-pointer bg-white rounded-lg border border-slate-200/50 overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 block"
+                >
+                  {/* Images */}
+                  <div className="aspect-[4/3] bg-slate-100 relative overflow-hidden">
+                    <img
+                      src={p.imageUrl}
+                      alt={p.name}
+                      className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500"
+                      referrerPolicy="no-referrer"
+                    />
+                    
+                    <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-3">
+                      <span className="bg-white/90 text-black text-[10px] font-bold tracking-wider uppercase px-4 py-2 rounded shadow-md">
+                        Interactive Overview
+                      </span>
+                    </div>
+                  </div>
 
-                <div className="p-4 space-y-1 bg-white">
-                  <div className="flex justify-between text-[11px] text-slate-450 font-bold uppercase tracking-wider">
-                    <span>{p.category}</span>
-                    <span className="flex items-center text-amber-500 gap-0.5"><Star className="w-3 h-3 fill-current" /> {p.rating}</span>
+                  <div className="p-4 space-y-1 bg-white">
+                    <div className="flex justify-between text-[11px] text-slate-450 font-bold uppercase tracking-wider">
+                      <span>{p.category}</span>
+                      <span className="flex items-center text-amber-500 gap-0.5"><Star className="w-3.5 h-3.5 fill-current" /> {p.rating}</span>
+                    </div>
+                    <h4 className="font-bold text-sm text-slate-800 group-hover:underline">
+                      {p.name}
+                    </h4>
+                    <p className="text-xs font-extrabold text-[#0b1c30] pt-1">
+                      ₹{p.price.toLocaleString('en-IN')}
+                    </p>
                   </div>
-                  <h4 className="font-bold text-sm text-slate-800 group-hover:underline">
-                    {p.name}
-                  </h4>
-                  <p className="text-xs font-extrabold text-[#0b1c30] pt-1">
-                    ₹{p.price.toLocaleString('en-IN')}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

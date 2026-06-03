@@ -49,9 +49,17 @@ class QueryFeatures {
             if (op === 'lt' && !(itemVal < limit)) return false;
           }
         } else {
-          // Exact match filter (performs case-insensitive checks on string fields)
+          // Exact match filter (handles string matches, numeric matches, and array inclusions)
           const itemVal = item[key];
-          if (typeof itemVal === 'string' && typeof val === 'string') {
+          if (Array.isArray(itemVal)) {
+            const hasMatch = itemVal.some((el) => {
+              if (typeof el === 'object' && el !== null && el.name) {
+                return String(el.name).toLowerCase() === String(val).toLowerCase();
+              }
+              return String(el).toLowerCase() === String(val).toLowerCase();
+            });
+            if (!hasMatch) return false;
+          } else if (typeof itemVal === 'string' && typeof val === 'string') {
             if (itemVal.toLowerCase() !== val.toLowerCase()) return false;
           } else {
             if (itemVal != val) return false;

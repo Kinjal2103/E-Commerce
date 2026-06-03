@@ -1,12 +1,15 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { PRODUCTS } from '../data/products';
 import ProductCard from '../components/ProductCard';
 import Sidebar from '../components/Sidebar';
 import { SearchX, RotateCcw } from 'lucide-react';
 
 export default function Products() {
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Dataset states from backend
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // Filters States
   const [searchTerm, setSearchTerm] = useState('');
@@ -17,6 +20,25 @@ export default function Products() {
   const [selectedSize, setSelectedSize] = useState('All');
   const [maxPrice, setMaxPrice] = useState(100000);
   const [sortBy, setSortBy] = useState('featured');
+
+  // Load products from backend Express API on mount
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch('/api/products');
+        const data = await res.json();
+        if (data.success) {
+          setProducts(data.products);
+        }
+      } catch (err) {
+        console.error('Error fetching products from backend:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProducts();
+  }, []);
 
   // Synchronize initial filters with URL parameters
   useEffect(() => {
@@ -75,7 +97,7 @@ export default function Products() {
 
   // Perform dynamic filtering and sorting combined inside useMemo
   const filteredProducts = useMemo(() => {
-    let result = [...PRODUCTS];
+    let result = [...products];
 
     // 1. Search Query
     if (searchTerm.trim() !== '') {
@@ -150,7 +172,7 @@ export default function Products() {
     }
 
     return result;
-  }, [searchTerm, selectedCategory, selectedRoom, selectedAesthetic, selectedColor, selectedSize, maxPrice, sortBy]);
+  }, [products, searchTerm, selectedCategory, selectedRoom, selectedAesthetic, selectedColor, selectedSize, maxPrice, sortBy]);
 
   // Active filter count calculation
   const activeFiltersCount = [
@@ -227,7 +249,7 @@ export default function Products() {
                 Showing:
               </span>
               <span className="text-xs font-bold text-slate-800">
-                {filteredProducts.length} of {PRODUCTS.length} aesthetic items found
+                {filteredProducts.length} of {products.length} aesthetic items found
               </span>
             </div>
 
@@ -275,7 +297,17 @@ export default function Products() {
           </div>
 
           {/* Actual items list Grid */}
-          {filteredProducts.length === 0 ? (
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="aspect-[3/4] bg-white border border-slate-100 rounded-lg animate-pulse flex flex-col justify-end p-4 space-y-3">
+                  <div className="h-4 w-1/3 bg-slate-200 rounded"></div>
+                  <div className="h-6 w-3/4 bg-slate-200 rounded"></div>
+                  <div className="h-4 w-1/2 bg-slate-200 rounded"></div>
+                </div>
+              ))}
+            </div>
+          ) : filteredProducts.length === 0 ? (
             <div className="h-[400px] bg-white border border-slate-200/50 rounded-lg flex flex-col items-center justify-center p-8 text-center">
               <SearchX className="text-slate-350 w-16 h-16 stroke-[1.2] mb-4" />
               <h3 className="text-base font-bold text-slate-800">No products match your parameters</h3>

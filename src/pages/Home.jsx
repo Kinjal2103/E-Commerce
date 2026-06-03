@@ -1,11 +1,32 @@
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { PRODUCTS } from '../data/products';
 import ProductCard from '../components/ProductCard';
 import { ArrowRight, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 
 export default function Home() {
   const carouselRef = useRef(null);
+
+  // Dynamic products states loaded from backend API
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchHomeProducts = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch('/api/products');
+        const data = await res.json();
+        if (data.success) {
+          setProducts(data.products);
+        }
+      } catch (err) {
+        console.error('Error fetching homepage products:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchHomeProducts();
+  }, []);
 
   const scrollCarousel = (direction) => {
     if (carouselRef.current) {
@@ -17,12 +38,12 @@ export default function Home() {
     }
   };
 
-  const trendingProducts = PRODUCTS.filter(
+  const trendingProducts = products.filter(
     (p) => p.isTrending || p.badge === 'SMART' || p.badge === 'BESTSELLER'
   );
   
   // Featured smart lighting and appliances
-  const featuredTech = PRODUCTS.filter(
+  const featuredTech = products.filter(
     (p) => p.category === 'Smart Home' || p.category === 'Lighting'
   ).slice(0, 3);
 
@@ -182,16 +203,24 @@ export default function Home() {
           </div>
 
           {/* Actual swiper row */}
-          <div
-            ref={carouselRef}
-            className="flex gap-6 overflow-x-auto pb-4 scroll-smooth snap-x snap-mandatory no-scrollbar"
-          >
-            {trendingProducts.map((product) => (
-              <div key={product.id} className="w-[280px] sm:w-[310px] flex-shrink-0 snap-start">
-                <ProductCard product={product} />
-              </div>
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex gap-6 overflow-x-auto pb-4 no-scrollbar">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="w-[280px] sm:w-[310px] aspect-[3/4] flex-shrink-0 bg-white border border-slate-100 rounded-lg animate-pulse"></div>
+              ))}
+            </div>
+          ) : (
+            <div
+              ref={carouselRef}
+              className="flex gap-6 overflow-x-auto pb-4 scroll-smooth snap-x snap-mandatory no-scrollbar"
+            >
+              {trendingProducts.map((product) => (
+                <div key={product.id} className="w-[280px] sm:w-[310px] flex-shrink-0 snap-start">
+                  <ProductCard product={product} />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

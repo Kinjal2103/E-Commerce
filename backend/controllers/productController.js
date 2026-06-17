@@ -1,52 +1,80 @@
-/**
- * Product Controller Layer
- * Contains the controller handlers for incoming requests on product routes.
- * Utilizes the catchAsync wrapper, Product model, and QueryFeatures utility.
- */
-
 const Product = require('../models/productModel');
-const QueryFeatures = require('../utils/queryFeatures');
+const APIFeatures = require('../utils/apiFeatures');
 const { AppError, catchAsync } = require('../middleware/errorMiddleware');
 
-/**
- * @desc    Get all products (with optional filtering and sorting)
- * @route   GET /api/products
- * @access  Public
- */
 exports.getProducts = catchAsync(async (req, res, next) => {
-  // Retrieve raw array database records from Model
-  const allProducts = await Product.find();
-
-  // Instantiate query compiler chain
-  const features = new QueryFeatures(allProducts, req.query)
+  const features = new APIFeatures(Product.find(), req.query)
+    .search()
     .filter()
-    .sort();
+    .sort()
+    .paginate();
 
-  // Send successful JSON payload
+  const products = await features.mongooseQuery;
+
+  const totalCountFeatures = new APIFeatures(Product.find(), req.query)
+    .search()
+    .filter();
+  const totalProductsCount = await totalCountFeatures.mongooseQuery.countDocuments();
+
   res.status(200).json({
     success: true,
-    results: features.query.length,
-    products: features.query
+    results: products.length,
+    totalResults: totalProductsCount,
+    products
   });
 });
 
-/**
- * @desc    Get a single product by ID
- * @route   GET /api/products/:id
- * @access  Public
- */
 exports.getProductById = catchAsync(async (req, res, next) => {
-  // Query specific product records from Model
   const product = await Product.findById(req.params.id);
 
-  // Validate presence - Trigger operational 404 Error if null
   if (!product) {
-    return next(new AppError('Product not found', 404));
+    return next(new AppError('No product found with the specified ID.', 404));
   }
 
-  // Send matched single record payload
   res.status(200).json({
     success: true,
     product
+  });
+});
+
+exports.createProduct = catchAsync(async (req, res, next) => {
+  const newProduct = await Product.create(req.body);
+
+  res.status(201).json({
+    success: true,
+    data: {
+      product: newProduct
+    }
+  });
+});
+
+exports.updateProduct = catchAsync(async (req, res, next) => {
+  const updatedProduct = await Product.findByIdAndUpdate(req.params.id, req.body, {
+    new: true,
+    runValidators: true
+  });
+
+  if (!updatedProduct) {
+    return next(new AppError('No product found with the specified ID to update.', 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    data: {
+      product: updatedProduct
+    }
+  });
+});
+
+exports.deleteProduct = catchAsync(async (req, res, next) => {
+  const deletedProduct = await Product.findByIdAndDelete(req.params.id);
+
+  if (!deletedProduct) {
+    return next(new AppError('No product found with the specified ID to delete.', 404));
+  }
+
+  res.status(204).json({
+    success: true,
+    data: null
   });
 });

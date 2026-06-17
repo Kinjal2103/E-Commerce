@@ -17,6 +17,11 @@ process.on('uncaughtException', (err) => {
 // Load variables from environment config file
 dotenv.config({ path: path.join(__dirname, '.env') });
 
+const connectDB = require('./config/db');
+
+// Establish connection to MongoDB
+connectDB();
+
 const app = require('./app');
 
 // Define port binding

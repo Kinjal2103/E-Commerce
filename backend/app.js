@@ -7,6 +7,9 @@
 const express = require('express');
 const cors = require('cors');
 const productRouter = require('./routes/productRoutes');
+const authRouter = require('./routes/authRoutes');
+const userRouter = require('./routes/userRoutes');
+const orderRouter = require('./routes/orderRoutes');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 
 const app = express();
@@ -27,6 +30,15 @@ app.get('/api/health', (req, res) => {
 
 // Mount Product Routes Group
 app.use('/api/products', productRouter);
+
+// Mount Auth Routes Group
+app.use('/api/auth', authRouter);
+
+// Mount User Routes Group
+app.use('/api/users', userRouter);
+
+// Mount Order Routes Group
+app.use('/api/orders', orderRouter);
 
 // Undefined Route Handler (triggers 404 AppError)
 app.use(notFound);

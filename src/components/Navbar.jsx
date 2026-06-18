@@ -121,9 +121,9 @@ export default function Navbar() {
             </button>
             
             <Link
-              to="/cart"
+              to={localStorage.getItem('token') ? "/profile" : "/login"}
               className="p-2 hover:bg-slate-200/50 rounded-full transition-all text-[#0b1c30] hidden sm:flex items-center justify-center cursor-pointer"
-              aria-label="View shopping cart page"
+              aria-label="User account"
             >
               <User className="w-5 h-5" />
             </Link>
@@ -221,7 +221,7 @@ export default function Navbar() {
 
           <div className="mt-auto pt-8 space-y-4 border-t border-slate-100">
             <Link
-              to="/cart"
+              to={localStorage.getItem('token') ? "/profile" : "/login"}
               onClick={() => setIsMobileMenuOpen(false)}
               className="flex items-center gap-3 text-slate-600 cursor-pointer hover:text-black transition-colors"
             >

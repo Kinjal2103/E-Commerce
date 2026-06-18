@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useCart } from '../context/CartContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   ShoppingBag,
   Trash2,
@@ -23,12 +23,14 @@ export default function Cart() {
     clearCart
   } = useCart();
 
+  const navigate = useNavigate();
   const [promoCode, setPromoCode] = useState('');
   const [discountPercent, setDiscountPercent] = useState(0);
   const [promoError, setPromoError] = useState('');
   const [promoSuccess, setPromoSuccess] = useState('');
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [checkoutComplete, setCheckoutComplete] = useState(false);
+  const [checkoutError, setCheckoutError] = useState('');
 
   // Form states for modern premium checkout panel
   const [shippingForm, setShippingForm] = useState({

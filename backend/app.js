@@ -10,6 +10,7 @@ const productRouter = require('./routes/productRoutes');
 const authRouter = require('./routes/authRoutes');
 const userRouter = require('./routes/userRoutes');
 const orderRouter = require('./routes/orderRoutes');
+const chatRouter = require('./routes/chatRoutes');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 
 const app = express();
@@ -39,6 +40,9 @@ app.use('/api/users', userRouter);
 
 // Mount Order Routes Group
 app.use('/api/orders', orderRouter);
+
+// Mount Chat Routes Group
+app.use('/api/chat', chatRouter);
 
 // Undefined Route Handler (triggers 404 AppError)
 app.use(notFound);

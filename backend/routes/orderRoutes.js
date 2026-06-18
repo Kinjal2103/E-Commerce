@@ -12,7 +12,7 @@ const router = express.Router();
 // Apply auth protect guard to all order endpoints
 router.use(protect);
 
-// POST /api/orders/checkout -> Place checkout order
+router.post('/', orderController.createOrder);
 router.post('/checkout', orderController.createOrder);
 
 // GET /api/orders/:id -> Fetch single order details (Owner or Admin access verified in controller)

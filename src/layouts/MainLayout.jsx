@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import CartDrawer from '../components/CartDrawer';
+import ChatAssistant from '../components/ChatAssistant';
 
 export default function MainLayout() {
   return (
@@ -16,6 +17,9 @@ export default function MainLayout() {
 
       {/* Slide-out Cart Panel overlaid universally */}
       <CartDrawer />
+
+      {/* AI Chatbot Assistant widget */}
+      <ChatAssistant />
 
       {/* Universal footer */}
       <Footer />

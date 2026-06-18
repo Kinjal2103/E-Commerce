@@ -2,19 +2,16 @@ const mongoose = require('mongoose');
 
 const productSchema = new mongoose.Schema(
   {
-    title: {
+    name: {
       type: String,
-      required: [true, 'A product must have a title.'],
-      unique: true,
+      required: [true, 'A product must have a name.'],
       trim: true,
-      minlength: [3, 'A product title must be at least 3 characters long.'],
-      maxlength: [120, 'A product title cannot exceed 120 characters.']
+      minlength: [3, 'A product name must be at least 3 characters long.']
     },
     description: {
       type: String,
       required: [true, 'A product must have a description.'],
-      trim: true,
-      minlength: [10, 'A product description must be at least 10 characters long.']
+      trim: true
     },
     price: {
       type: Number,
@@ -26,41 +23,63 @@ const productSchema = new mongoose.Schema(
       required: [true, 'A product must have a category.'],
       trim: true
     },
-    brand: {
+    room: {
       type: String,
-      required: [true, 'A product must have a brand.'],
       trim: true
+    },
+    aesthetic: {
+      type: String,
+      trim: true
+    },
+    colors: [
+      {
+        name: { type: String },
+        hex: { type: String }
+      }
+    ],
+    sizes: [
+      {
+        type: String
+      }
+    ],
+    imageUrl: {
+      type: String,
+      required: [true, 'A product must have an imageUrl.']
+    },
+    badge: {
+      type: String,
+      trim: true
+    },
+    rating: {
+      type: Number,
+      min: [0, 'Rating must be at least 0.'],
+      max: [5, 'Rating cannot exceed 5.'],
+      default: 0
+    },
+    reviews: {
+      type: Number,
+      min: [0, 'Number of reviews cannot be negative.'],
+      default: 0
+    },
+    isFeatured: {
+      type: Boolean,
+      default: false
+    },
+    isTrending: {
+      type: Boolean,
+      default: false
     },
     stock: {
       type: Number,
       required: [true, 'A product must have a stock quantity.'],
-      min: [0, 'Stock count cannot be a negative value.'],
-      default: 0
+      min: [0, 'Stock cannot be negative.'],
+      default: 10
     },
-    images: {
-      type: [String],
-      required: [true, 'A product must have at least one image.'],
-      validate: {
-        validator: function(val) {
-          return Array.isArray(val) && val.length > 0;
-        },
-        message: 'A product must have at least one image URI in the images array.'
-      }
+    materials: {
+      type: String
     },
-    ratings: {
-      type: Number,
-      min: [0, 'Rating score must be at least 0.'],
-      max: [5, 'Rating score cannot be more than 5.'],
-      default: 0
-    },
-    numReviews: {
-      type: Number,
-      min: [0, 'Number of reviews cannot be a negative value.'],
-      default: 0
-    },
-    featured: {
-      type: Boolean,
-      default: false
+    care: {
+      type: String
     }
   },
   {
@@ -71,10 +90,10 @@ const productSchema = new mongoose.Schema(
 );
 
 productSchema.index(
-  { title: 'text', brand: 'text', description: 'text' },
+  { name: 'text', brand: 'text', description: 'text' },
   {
     weights: {
-      title: 10,
+      name: 10,
       brand: 5,
       description: 1
     },
@@ -84,8 +103,8 @@ productSchema.index(
 
 productSchema.index({ category: 1 });
 productSchema.index({ price: 1 });
-productSchema.index({ ratings: -1 });
-productSchema.index({ featured: -1 });
+productSchema.index({ rating: -1 });
+productSchema.index({ isFeatured: -1 });
 
 productSchema.virtual('isOutOfStock').get(function() {
   return this.stock <= 0;

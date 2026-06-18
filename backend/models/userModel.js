@@ -32,6 +32,14 @@ const userSchema = new mongoose.Schema(
         message: 'Role must be either user or admin.'
       },
       default: 'user'
+    },
+    phone: {
+      type: String,
+      trim: true
+    },
+    address: {
+      type: String,
+      trim: true
     }
   },
   {

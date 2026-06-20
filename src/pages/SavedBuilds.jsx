@@ -7,62 +7,13 @@ export default function SavedBuilds() {
   const [builds, setBuilds] = useState([]);
   const [statusMessage, setStatusMessage] = useState('');
 
-  // Default pre-seeded builds if none exist in localStorage
-  const preseededBuilds = [
-    {
-      id: 'preseed-1',
-      name: 'Project Obsidian (Default)',
-      budget: 3840.00,
-      performanceScore: 'Extreme',
-      compatibilityScore: 98,
-      specs: {
-        cpu: 'Intel Core i9-14900K',
-        gpu: 'ROG Strix GeForce RTX 4090 OC',
-        case: 'Phanteks NV7 Premium Glass'
-      },
-      rawBuild: {
-        cpu: { id: 'cpu-i9-14900k', name: 'Intel Core i9-14900K', price: 589 },
-        gpu: { id: 'gpu-rtx-4090', name: 'ROG Strix GeForce RTX 4090 OC', price: 1999 },
-        motherboard: { id: 'mb-z790-carbon', name: 'MPG Z790 Carbon WiFi', price: 429 },
-        ram: { id: 'ram-dominator-64', name: 'Dominator Titanium 64GB DDR5', price: 294 },
-        ssd: { id: 'ssd-990-pro', name: 'Samsung 990 Pro M.2 NVMe 2TB', price: 169 },
-        psu: { id: 'psu-rm1000x', name: 'Corsair RM1000x Shift ATX 3.0', price: 209 },
-        case: { id: 'case-nv7', name: 'Phanteks NV7 Premium Glass', price: 219 },
-        cooler: { id: 'cooler-h150i', name: 'Corsair iCUE H150i Elite LCD XT', price: 259 }
-      }
-    },
-    {
-      id: 'preseed-2',
-      name: 'AMD Value Stealth',
-      budget: 2320.00,
-      performanceScore: 'Extreme',
-      compatibilityScore: 100,
-      specs: {
-        cpu: 'AMD Ryzen 7 7800X3D',
-        gpu: 'Radeon RX 7900 XTX Gaming',
-        case: 'Lian Li O11 Dynamic EVO'
-      },
-      rawBuild: {
-        cpu: { id: 'cpu-ryzen-7800x3d', name: 'AMD Ryzen 7 7800X3D', price: 369 },
-        gpu: { id: 'gpu-rx-7900xtx', name: 'Radeon RX 7900 XTX Gaming', price: 949 },
-        motherboard: { id: 'mb-x670e-rog-strix', name: 'ROG Strix X670E-E Gaming WiFi', price: 489 },
-        ram: { id: 'ram-trident-z5-32', name: 'Trident Z5 RGB 32GB DDR5', price: 185 },
-        ssd: { id: 'ssd-990-pro', name: 'Samsung 990 Pro M.2 NVMe 2TB', price: 169 },
-        psu: { id: 'psu-focus-850', name: 'Seasonic Focus GX-850 Gold', price: 139 },
-        case: { id: 'case-o11d-evo', name: 'Lian Li O11 Dynamic EVO', price: 169 },
-        cooler: { id: 'cooler-nhd15', name: 'Noctua NH-D15 chromax.black', price: 119 }
-      }
-    }
-  ];
-
   useEffect(() => {
     try {
       const stored = localStorage.getItem('forge_saved_builds');
       if (stored) {
         setBuilds(JSON.parse(stored));
       } else {
-        setBuilds(preseededBuilds);
-        localStorage.setItem('forge_saved_builds', JSON.stringify(preseededBuilds));
+        setBuilds([]);
       }
     } catch (e) {
       console.error(e);
@@ -159,7 +110,7 @@ export default function SavedBuilds() {
                   {b.name}
                 </h3>
                 <span className="text-[10px] text-slate-500 uppercase tracking-widest font-mono block mt-1">
-                  Est. Budget: <strong className="text-blue-400">${b.budget.toFixed(2)}</strong>
+                  Est. Budget: <strong className="text-blue-400">₹{b.budget.toLocaleString('en-IN')}</strong>
                 </span>
 
                 {/* Technical specs short list */}

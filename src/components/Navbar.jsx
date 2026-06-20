@@ -108,7 +108,7 @@ export default function Navbar() {
               <Users className="w-3.5 h-3.5" />
               Showcase
             </NavLink>
-            <NavLink
+            {/* <NavLink
               to="/admin"
               className={({ isActive }) =>
                 `flex items-center gap-1.5 font-sans text-xs tracking-wider font-bold transition-all uppercase select-none cursor-pointer py-1 border-b-2 ${
@@ -120,7 +120,7 @@ export default function Navbar() {
             >
               <ShieldAlert className="w-3.5 h-3.5" />
               Admin
-            </NavLink>
+            </NavLink> */}
           </nav>
 
           {/* Right Action Icons & Search */}

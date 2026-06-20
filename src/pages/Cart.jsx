@@ -21,8 +21,8 @@ export default function Cart() {
   const rawSubtotal = cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
   const discountAmount = rawSubtotal * (discountPercent / 100);
   const subtotal = rawSubtotal - discountAmount;
-  const shippingThreshold = 500;
-  const shippingCost = subtotal >= shippingThreshold || subtotal === 0 ? 0 : 25.00;
+  const shippingThreshold = 15000;
+  const shippingCost = subtotal >= shippingThreshold || subtotal === 0 ? 0 : 500;
   const salesTax = subtotal * 0.08;
   const total = subtotal + shippingCost + salesTax;
 
@@ -102,7 +102,7 @@ export default function Cart() {
                             {item.product.name}
                           </h3>
                           <span className="font-mono text-sm font-bold text-blue-400">
-                            ${(item.product.price * item.quantity).toFixed(2)}
+                            ₹{(item.product.price * item.quantity).toLocaleString('en-IN')}
                           </span>
                         </div>
                         <span className="text-[10px] text-slate-500 uppercase tracking-wider font-mono block mt-1">
@@ -155,7 +155,7 @@ export default function Cart() {
                   </p>
                 ) : (
                   <p className="text-xs text-slate-400 leading-relaxed">
-                    Add <strong className="text-white">${(shippingThreshold - subtotal).toFixed(2)}</strong> more to qualify for <strong className="text-white">Free Shipping</strong>. (Standard shipping fee is $25.00).
+                    Add <strong className="text-white">₹{(shippingThreshold - subtotal).toLocaleString('en-IN')}</strong> more to qualify for <strong className="text-white">Free Shipping</strong>. (Standard shipping fee is ₹500).
                   </p>
                 )}
               </div>
@@ -195,13 +195,13 @@ export default function Cart() {
               <div className="space-y-3 text-xs text-slate-450 border-t border-white/5 pt-5 font-sans">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span className="font-semibold text-white">${rawSubtotal.toFixed(2)}</span>
+                  <span className="font-semibold text-white">₹{rawSubtotal.toLocaleString('en-IN')}</span>
                 </div>
                 
                 {discountPercent > 0 && (
                   <div className="flex justify-between text-green-400">
                     <span>Discount ({discountPercent}%)</span>
-                    <span className="font-bold">-${discountAmount.toFixed(2)}</span>
+                    <span className="font-bold">-₹{discountAmount.toLocaleString('en-IN')}</span>
                   </div>
                 )}
 
@@ -210,18 +210,18 @@ export default function Cart() {
                   {shippingCost === 0 ? (
                     <span className="text-green-400 font-bold uppercase text-[10px]">Free</span>
                   ) : (
-                    <span className="font-semibold text-white">${shippingCost.toFixed(2)}</span>
+                    <span className="font-semibold text-white">₹{shippingCost.toLocaleString('en-IN')}</span>
                   )}
                 </div>
 
                 <div className="flex justify-between">
                   <span>Tax (8%)</span>
-                  <span className="font-semibold text-white">${salesTax.toFixed(2)}</span>
+                  <span className="font-semibold text-white">₹{salesTax.toLocaleString('en-IN')}</span>
                 </div>
 
                 <div className="border-t border-white/5 pt-4 flex justify-between text-white font-black text-sm">
                   <span>Total</span>
-                  <span className="text-lg text-blue-400">${total.toFixed(2)}</span>
+                  <span className="text-lg text-blue-400">₹{total.toLocaleString('en-IN')}</span>
                 </div>
               </div>
 

@@ -145,6 +145,14 @@ export default function ProductDetails() {
     return null;
   }, [product]);
 
+  if (!product) {
+    return (
+      <div className="max-w-[1440px] mx-auto px-6 md:px-8 py-20 font-sans mt-8 text-center min-h-screen text-white">
+        <p className="text-slate-400">Loading product details or component not found...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-[1440px] mx-auto px-6 md:px-8 py-10 font-sans mt-8 text-left">
       {/* Breadcrumbs */}
@@ -233,7 +241,7 @@ export default function ProductDetails() {
 
           {/* Pricing */}
           <div className="border-y border-white/5 py-4 flex items-baseline gap-4">
-            <span className="text-3xl font-black text-blue-400">${product.price.toFixed(2)}</span>
+            <span className="text-3xl font-black text-blue-400">₹{product.price.toLocaleString('en-IN')}</span>
             <span className="text-xs text-slate-500 font-semibold font-mono">Est. Shipping: FREE</span>
           </div>
 

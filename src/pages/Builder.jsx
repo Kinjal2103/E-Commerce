@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { PRODUCTS, GAMES } from '../data/hardwareData';
-import { Cpu, Layers, Wrench, Trash2, ShieldAlert, CheckCircle2, RefreshCw, BarChart2, Share2, FileDown, PlusCircle, Bookmark } from 'lucide-react';
+import { Cpu, Layers, Wrench, Trash2, ShieldAlert, CheckCircle2, RefreshCw, BarChart2, Share2, FileDown, PlusCircle, Bookmark, ShoppingCart } from 'lucide-react';
 
 export default function Builder() {
   const navigate = useNavigate();
@@ -21,6 +21,10 @@ export default function Builder() {
     cooler: null
   });
 
+  // Reference Catalogs
+  const [productsList, setProductsList] = useState(PRODUCTS);
+  const [gamesList, setGamesList] = useState(GAMES);
+
   // Share / Export Modals
   const [showShareModal, setShowShareModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
@@ -29,6 +33,36 @@ export default function Builder() {
 
   // Active FPS Resolution
   const [activeResolution, setActiveResolution] = useState('1440p'); // '1080p' | '1440p' | '4K'
+
+  // Fetch reference catalogs
+  useEffect(() => {
+    const fetchRefData = async () => {
+      try {
+        const resProd = await fetch('/api/products?limit=100');
+        const dataProd = await resProd.json();
+        if (dataProd.success && dataProd.products && dataProd.products.length > 0) {
+          const mappedProds = dataProd.products.map(p => ({
+            ...p,
+            id: p.id || p._id
+          }));
+          setProductsList(mappedProds);
+        }
+      } catch (err) {
+        console.warn('Offline, using fallback PRODUCTS catalog.');
+      }
+
+      try {
+        const resGames = await fetch('/api/products/games');
+        const dataGames = await resGames.json();
+        if (dataGames.success && dataGames.games && dataGames.games.length > 0) {
+          setGamesList(dataGames.games);
+        }
+      } catch (err) {
+        console.warn('Offline, using fallback GAMES catalog.');
+      }
+    };
+    fetchRefData();
+  }, []);
 
   // Load active configuration from local storage on mount
   useEffect(() => {
@@ -50,7 +84,7 @@ export default function Builder() {
         if (target) {
           const loadedBuild = {};
           Object.entries(target.specs).forEach(([slot, prodId]) => {
-            loadedBuild[slot] = PRODUCTS.find(p => p.id === prodId) || null;
+            loadedBuild[slot] = productsList.find(p => p.id === prodId || p._id === prodId) || null;
           });
           setBuild(loadedBuild);
           localStorage.setItem('forge_current_build', JSON.stringify(loadedBuild));
@@ -67,7 +101,7 @@ export default function Builder() {
     } catch (e) {
       console.error(e);
     }
-  }, [searchParams, navigate]);
+  }, [searchParams, navigate, productsList]);
 
   // Remove item from a configuration slot
   const handleRemoveSlot = (slotKey) => {
@@ -209,24 +243,26 @@ export default function Builder() {
     // CPU Coeff
     let cpuCoeff = 0.2;
     if (build.cpu) {
-      if (build.cpu.id.includes('14900k')) cpuCoeff = 1.0;
-      else if (build.cpu.id.includes('7800x3d')) cpuCoeff = 1.05;
+      const cpuId = build.cpu.id || build.cpu._id || '';
+      if (cpuId.includes('14900k')) cpuCoeff = 1.0;
+      else if (cpuId.includes('7800x3d')) cpuCoeff = 1.05;
       else cpuCoeff = 0.9;
     }
     
     // GPU Coeff
     let gpuCoeff = 0.15;
     if (build.gpu) {
-      if (build.gpu.id.includes('4090')) gpuCoeff = 1.0;
-      else if (build.gpu.id.includes('7900xtx')) gpuCoeff = 0.85;
+      const gpuId = build.gpu.id || build.gpu._id || '';
+      if (gpuId.includes('4090')) gpuCoeff = 1.0;
+      else if (gpuId.includes('7900xtx')) gpuCoeff = 0.85;
       else gpuCoeff = 0.72;
     }
 
     const resolutionFactors = { '1080p': 1.15, '1440p': 0.82, '4K': 0.44 };
     const resFactor = resolutionFactors[activeResolution];
 
-    GAMES.forEach((game) => {
-      const baseFps = game.resolutionFPS['1440p']; // standard baseline
+    gamesList.forEach((game) => {
+      const baseFps = game.resolutionFPS?.['1440p'] || 100; // standard baseline
       // Calculate dynamic FPS based on hardware choice
       const estimatedFps = Math.round(baseFps * cpuCoeff * gpuCoeff * (resFactor / 0.82));
       estimations.push({
@@ -236,7 +272,7 @@ export default function Builder() {
     });
 
     return estimations;
-  }, [build, activeResolution]);
+  }, [build, activeResolution, gamesList]);
 
   // Save current build to profile saved list
   const handleSaveBuild = () => {
@@ -418,7 +454,7 @@ export default function Builder() {
                     {selectedItem ? (
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-black text-blue-400 font-mono mr-2">
-                          ${selectedItem.price.toFixed(2)}
+                          ₹{selectedItem.price.toLocaleString('en-IN')}
                         </span>
                         <button
                           onClick={() => handleSelectSlot(slot.category)}
@@ -461,7 +497,7 @@ export default function Builder() {
             <div className="flex justify-between items-baseline">
               <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Total MSRP</span>
               <div className="text-right">
-                <span className="text-3xl font-black text-blue-400 font-mono">${totalPrice.toFixed(2)}</span>
+                <span className="text-3xl font-black text-blue-400 font-mono">₹{totalPrice.toLocaleString('en-IN')}</span>
                 <p className="text-[9px] text-slate-500 uppercase tracking-widest font-mono mt-0.5">MSRP tax excluded</p>
               </div>
             </div>
@@ -592,11 +628,11 @@ export default function Builder() {
             <h3 className="text-lg font-bold text-white mb-2 border-b border-white/5 pb-2">Specification Sheet Export</h3>
             <div className="bg-[#0F172A] p-4 rounded-xl border border-white/5 font-mono text-[10px] text-slate-350 max-h-60 overflow-y-auto space-y-1 my-4 scrollbar-thin">
               <p className="font-bold text-white">=== BUILDFORGE PC CONFIGURATION ===</p>
-              <p>MSRP Estimate: ${totalPrice.toFixed(2)}</p>
+              <p>MSRP Estimate: ₹{totalPrice.toLocaleString('en-IN')}</p>
               <p>Power Draw: {compatibilityEngine.tdp}W</p>
               <p>----------------------------------</p>
               {Object.entries(build).map(([key, item]) => (
-                <p key={key}>{key.toUpperCase()}: {item ? `${item.name} ($${item.price})` : 'Not Selected'}</p>
+                <p key={key}>{key.toUpperCase()}: {item ? `${item.name} (₹${item.price.toLocaleString('en-IN')})` : 'Not Selected'}</p>
               ))}
             </div>
             <div className="flex gap-2">

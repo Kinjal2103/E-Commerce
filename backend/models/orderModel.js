@@ -28,7 +28,7 @@ const orderSchema = new mongoose.Schema(
           min: [0, 'Item price cannot be a negative value.']
         },
         product: {
-          type: mongoose.Schema.Types.ObjectId,
+          type: String,
           ref: 'Product',
           required: [true, 'Order item must reference a Product ID.']
         }

@@ -1,5 +1,6 @@
 const Product = require('../models/productModel');
 const APIFeatures = require('../utils/apiFeatures');
+const { CATEGORIES, GAMES, COMMUNITY_BUILDS } = require('../data/referenceData');
 const { AppError, catchAsync } = require('../middleware/errorMiddleware');
 
 exports.getProducts = catchAsync(async (req, res, next) => {
@@ -76,5 +77,26 @@ exports.deleteProduct = catchAsync(async (req, res, next) => {
   res.status(204).json({
     success: true,
     data: null
+  });
+});
+
+exports.getCategories = catchAsync(async (req, res, next) => {
+  res.status(200).json({
+    success: true,
+    categories: CATEGORIES
+  });
+});
+
+exports.getGames = catchAsync(async (req, res, next) => {
+  res.status(200).json({
+    success: true,
+    games: GAMES
+  });
+});
+
+exports.getCommunityBuilds = catchAsync(async (req, res, next) => {
+  res.status(200).json({
+    success: true,
+    communityBuilds: COMMUNITY_BUILDS
   });
 });

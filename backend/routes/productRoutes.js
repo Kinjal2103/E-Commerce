@@ -15,6 +15,11 @@ router.route('/')
   .get(productController.getProducts)
   .post(protect, restrictTo('admin'), productController.createProduct);
 
+// Public reference routes
+router.get('/categories', productController.getCategories);
+router.get('/games', productController.getGames);
+router.get('/community-builds', productController.getCommunityBuilds);
+
 // Public read details / Admin modify & remove endpoints
 router.route('/:id')
   .get(productController.getProductById)

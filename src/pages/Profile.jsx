@@ -9,19 +9,7 @@ export default function Profile() {
     phone: '+1 (555) 902-1248',
     address: '128 Silicon Valley Way, San Jose, CA'
   });
-  const [orders, setOrders] = useState([
-    {
-      orderId: 'BF-OR-904812',
-      date: '2026-06-18',
-      total: 2588.00,
-      itemsCount: 2,
-      status: 'Shipped',
-      items: [
-        { name: 'Intel Core i9-14900K', price: 589.00, qty: 1 },
-        { name: 'ROG Strix GeForce RTX 4090 OC', price: 1999.00, qty: 1 }
-      ]
-    }
-  ]);
+  const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isEditing, setIsEditing] = useState(false);
@@ -261,20 +249,27 @@ export default function Profile() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5 text-slate-300 font-mono">
-                    {orders.map((o) => (
-                      <tr key={o.orderId} className="hover:bg-white/5">
-                        <td className="p-4 text-white font-bold">{o.orderId}</td>
-                        <td className="p-4">{o.date}</td>
-                        <td className="p-4">
-                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                            o.status === 'Delivered' ? 'bg-green-500/10 text-green-400' : 'bg-blue-500/10 text-blue-400'
-                          }`}>
-                            {o.status || 'Paid'}
-                          </span>
-                        </td>
-                        <td className="p-4 text-right text-blue-400 font-bold">${(o.total || o.totalPrice).toFixed(2)}</td>
-                      </tr>
-                    ))}
+                    {orders.map((o) => {
+                      const orderId = o.orderId || o._id;
+                      const dateStr = o.date || (o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '');
+                      const statusStr = o.status || o.orderStatus || 'Paid';
+                      const amount = o.total !== undefined ? o.total : (o.totalPrice !== undefined ? o.totalPrice : 0);
+
+                      return (
+                        <tr key={orderId} className="hover:bg-white/5">
+                          <td className="p-4 text-white font-bold">{orderId}</td>
+                          <td className="p-4">{dateStr}</td>
+                          <td className="p-4">
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                              statusStr === 'Delivered' ? 'bg-green-500/10 text-green-400' : 'bg-blue-500/10 text-blue-400'
+                            }`}>
+                              {statusStr}
+                            </span>
+                          </td>
+                          <td className="p-4 text-right text-blue-400 font-bold">₹{amount.toLocaleString('en-IN')}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               )}

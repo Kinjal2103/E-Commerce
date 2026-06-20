@@ -17,7 +17,7 @@ export default function Products() {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedBrands, setSelectedBrands] = useState([]);
   const [minPrice, setMinPrice] = useState(0);
-  const [maxPrice, setMaxPrice] = useState(2500);
+  const [maxPrice, setMaxPrice] = useState(150000);
   const [selectedSockets, setSelectedSockets] = useState([]);
   const [selectedRamTypes, setSelectedRamTypes] = useState([]);
   const [selectedVramSizes, setSelectedVramSizes] = useState([]);
@@ -35,10 +35,14 @@ export default function Products() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch('/api/products');
+        const res = await fetch('/api/products?limit=100');
         const data = await res.json();
         if (data.success && data.products && data.products.length > 0) {
-          setProducts(data.products);
+          const mapped = data.products.map(p => ({
+            ...p,
+            id: p.id || p._id
+          }));
+          setProducts(mapped);
         }
       } catch (err) {
         console.warn('Backend offline or error fetching products, using local fallback.');
@@ -113,7 +117,7 @@ export default function Products() {
     setSelectedCategory('All');
     setSelectedBrands([]);
     setMinPrice(0);
-    setMaxPrice(2500);
+    setMaxPrice(350000);
     setSelectedSockets([]);
     setSelectedRamTypes([]);
     setSelectedVramSizes([]);
@@ -324,6 +328,9 @@ export default function Products() {
               <option value="Power Supplies">Power Supplies (PSUs)</option>
               <option value="Cases">Cabinet Cases</option>
               <option value="Cooling">Coolers & Fans</option>
+              <option value="Monitor">Monitors</option>
+              <option value="Peripherals">Peripherals</option>
+              <option value="Accessories">Accessories</option>
             </select>
           </div>
 
@@ -331,14 +338,14 @@ export default function Products() {
           <div>
             <label className="block text-xs uppercase tracking-wider text-slate-400 font-bold mb-2">Price Limit</label>
             <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-              <span>$0</span>
-              <span className="text-white font-bold font-mono">${maxPrice}</span>
+              <span>₹0</span>
+              <span className="text-white font-bold font-mono">₹{maxPrice.toLocaleString('en-IN')}</span>
             </div>
             <input
               type="range"
               min="0"
-              max="2500"
-              step="50"
+              max="350000"
+              step="1000"
               value={maxPrice}
               onChange={(e) => setMaxPrice(Number(e.target.value))}
               className="w-full h-1 bg-[#1E293B] rounded-lg appearance-none cursor-pointer accent-blue-500"
@@ -642,7 +649,7 @@ export default function Products() {
                         }`}
                       >
                         <div className="flex flex-col text-left">
-                          <span className="text-base font-black text-white">${product.price.toFixed(2)}</span>
+                          <span className="text-base font-black text-white">₹{product.price.toLocaleString('en-IN')}</span>
                           <span
                             className={`text-[9px] font-bold uppercase ${
                               product.stock > 0 ? 'text-green-400' : 'text-red-400'

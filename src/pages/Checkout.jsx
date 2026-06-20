@@ -35,7 +35,7 @@ export default function Checkout() {
 
   // Financial calculations
   const rawSubtotal = cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
-  const shippingCost = rawSubtotal >= 500 || rawSubtotal === 0 ? 0 : 25.00;
+  const shippingCost = rawSubtotal >= 15000 || rawSubtotal === 0 ? 0 : 500;
   const salesTax = rawSubtotal * 0.08;
   const total = rawSubtotal + shippingCost + salesTax;
 
@@ -49,35 +49,103 @@ export default function Checkout() {
     setStep(3);
   };
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
     setIsSubmitting(true);
-    // Simulate API request
-    setTimeout(() => {
-      setIsSubmitting(false);
-      const generatedNo = 'BF-OR-' + Math.floor(Math.random() * 900000 + 100000);
-      setOrderNumber(generatedNo);
-      
-      // Save order to localStorage order history
+    const token = localStorage.getItem('token');
+
+    if (token) {
       try {
-        const storedOrders = localStorage.getItem('forge_orders');
-        const orders = storedOrders ? JSON.parse(storedOrders) : [];
-        const newOrder = {
-          orderId: generatedNo,
-          date: new Date().toLocaleDateString(),
-          total: total,
-          itemsCount: cart.length,
-          status: 'Shipped',
-          items: cart.map(item => ({ name: item.product.name, price: item.product.price, qty: item.quantity }))
+        const bodyData = {
+          orderItems: cart.map(item => ({
+            name: item.product.name,
+            qty: item.quantity,
+            image: item.product.imageUrl,
+            price: item.product.price,
+            product: item.product.id || item.product._id
+          })),
+          shippingAddress: {
+            address: shippingData.address,
+            city: shippingData.city,
+            postalCode: shippingData.zip,
+            country: shippingData.state || 'United States'
+          },
+          paymentMethod: 'Credit Card',
+          taxPrice: salesTax,
+          shippingPrice: shippingCost,
+          totalPrice: total
         };
-        orders.unshift(newOrder);
-        localStorage.setItem('forge_orders', JSON.stringify(orders));
+
+        const res = await fetch('/api/orders', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(bodyData)
+        });
+        const data = await res.json();
+        if (data.success && data.data && data.data.order) {
+          const order = data.data.order;
+          setOrderNumber(order._id);
+          
+          // Save order to localStorage order history for offline fallback compatibility
+          try {
+            const storedOrders = localStorage.getItem('forge_orders');
+            const orders = storedOrders ? JSON.parse(storedOrders) : [];
+            const newOrder = {
+              orderId: order._id,
+              date: new Date(order.createdAt).toLocaleDateString(),
+              total: order.totalPrice,
+              itemsCount: order.orderItems.length,
+              status: order.orderStatus,
+              items: order.orderItems.map(item => ({ name: item.name, price: item.price, qty: item.qty }))
+            };
+            orders.unshift(newOrder);
+            localStorage.setItem('forge_orders', JSON.stringify(orders));
+          } catch (err) {
+            console.error(err);
+          }
+
+          setShowSuccess(true);
+          clearCart();
+        } else {
+          alert(data.message || 'Failed to place order.');
+        }
       } catch (err) {
         console.error(err);
+        alert('Network error placing order.');
+      } finally {
+        setIsSubmitting(false);
       }
+    } else {
+      // Simulate API request (offline fallback)
+      setTimeout(() => {
+        setIsSubmitting(false);
+        const generatedNo = 'BF-OR-' + Math.floor(Math.random() * 900000 + 100000);
+        setOrderNumber(generatedNo);
+        
+        // Save order to localStorage order history
+        try {
+          const storedOrders = localStorage.getItem('forge_orders');
+          const orders = storedOrders ? JSON.parse(storedOrders) : [];
+          const newOrder = {
+            orderId: generatedNo,
+            date: new Date().toLocaleDateString(),
+            total: total,
+            itemsCount: cart.length,
+            status: 'Shipped',
+            items: cart.map(item => ({ name: item.product.name, price: item.product.price, qty: item.quantity }))
+          };
+          orders.unshift(newOrder);
+          localStorage.setItem('forge_orders', JSON.stringify(orders));
+        } catch (err) {
+          console.error(err);
+        }
 
-      setShowSuccess(true);
-      clearCart();
-    }, 2000);
+        setShowSuccess(true);
+        clearCart();
+      }, 2000);
+    }
   };
 
   return (
@@ -356,9 +424,9 @@ export default function Checkout() {
                       <div key={idx} className="flex justify-between items-center py-2.5 text-xs">
                         <div className="flex-1 min-w-0 pr-4">
                           <p className="font-bold text-white truncate">{item.product.name}</p>
-                          <p className="text-[10px] text-slate-500 font-mono">Qty: {item.quantity} @ ${item.product.price.toFixed(2)}</p>
+                          <p className="text-[10px] text-slate-500 font-mono">Qty: {item.quantity} @ ₹{item.product.price.toLocaleString('en-IN')}</p>
                         </div>
-                        <span className="font-bold text-blue-400 font-mono">${(item.product.price * item.quantity).toFixed(2)}</span>
+                        <span className="font-bold text-blue-400 font-mono">₹{(item.product.price * item.quantity).toLocaleString('en-IN')}</span>
                       </div>
                     ))}
                   </div>
@@ -402,23 +470,23 @@ export default function Checkout() {
             <div className="space-y-2 text-xs text-slate-400">
               <div className="flex justify-between">
                 <span>Subtotal</span>
-                <span className="font-bold text-white font-mono">${rawSubtotal.toFixed(2)}</span>
+                <span className="font-bold text-white font-mono">₹{rawSubtotal.toLocaleString('en-IN')}</span>
               </div>
               <div className="flex justify-between">
                 <span>Shipping</span>
                 {shippingCost === 0 ? (
                   <span className="text-green-400 font-bold uppercase text-[10px]">Free</span>
                 ) : (
-                  <span className="font-bold text-white font-mono">${shippingCost.toFixed(2)}</span>
+                  <span className="font-bold text-white font-mono">₹{shippingCost.toLocaleString('en-IN')}</span>
                 )}
               </div>
               <div className="flex justify-between">
                 <span>Tax (8%)</span>
-                <span className="font-bold text-white font-mono">${salesTax.toFixed(2)}</span>
+                <span className="font-bold text-white font-mono">₹{salesTax.toLocaleString('en-IN')}</span>
               </div>
               <div className="border-t border-white/5 pt-3 flex justify-between text-sm text-white font-bold">
                 <span>Total</span>
-                <span className="text-base text-blue-400 font-mono">${total.toFixed(2)}</span>
+                <span className="text-base text-blue-400 font-mono">₹{total.toLocaleString('en-IN')}</span>
               </div>
             </div>
           </div>

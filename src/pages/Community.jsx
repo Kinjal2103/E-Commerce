@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { COMMUNITY_BUILDS } from '../data/hardwareData';
+import { COMMUNITY_BUILDS, PRODUCTS } from '../data/hardwareData';
 import { Heart, MessageSquare, Bookmark, Share2, Wrench, X, User } from 'lucide-react';
 
 export default function Community() {
   const navigate = useNavigate();
   const [posts, setPosts] = useState(COMMUNITY_BUILDS);
+  const [productsList, setProductsList] = useState([]);
   const [selectedPost, setSelectedPost] = useState(null);
   const [commentInput, setCommentInput] = useState('');
   const [commentsMap, setCommentsMap] = useState({
@@ -17,6 +18,43 @@ export default function Community() {
       { user: 'AMD_Fanboy', text: '7800X3D + 7900XTX is the absolute sweet spot for 1440p high-refresh gaming.' }
     ]
   });
+
+  useEffect(() => {
+    const fetchCommunityBuilds = async () => {
+      try {
+        const res = await fetch('/api/products/community-builds');
+        const data = await res.json();
+        if (data.success && data.communityBuilds && data.communityBuilds.length > 0) {
+          const mappedBuilds = data.communityBuilds.map(b => ({
+            ...b,
+            id: b.id || b._id
+          }));
+          setPosts(mappedBuilds);
+        }
+      } catch (err) {
+        console.warn('Offline, using local community builds.');
+      }
+    };
+
+    const fetchProducts = async () => {
+      try {
+        const res = await fetch('/api/products?limit=100');
+        const data = await res.json();
+        if (data.success && data.products && data.products.length > 0) {
+          const mappedProds = data.products.map(p => ({
+            ...p,
+            id: p.id || p._id
+          }));
+          setProductsList(mappedProds);
+        }
+      } catch (err) {
+        console.warn('Offline, using local products list.');
+      }
+    };
+
+    fetchCommunityBuilds();
+    fetchProducts();
+  }, []);
 
   const handleLike = (id) => {
     setPosts(prev =>
@@ -38,22 +76,19 @@ export default function Community() {
   };
 
   const handleClone = (specs) => {
-    // Map specifications to builder format
-    // specs are names, we need to map them to PRODUCTS objects
-    import('../data/hardwareData').then(({ PRODUCTS }) => {
-      const mappedBuild = {
-        cpu: PRODUCTS.find(p => p.name === specs.cpu) || null,
-        gpu: PRODUCTS.find(p => p.name === specs.gpu) || null,
-        ram: PRODUCTS.find(p => p.name === specs.ram) || null,
-        motherboard: PRODUCTS.find(p => p.name === specs.motherboard) || null,
-        ssd: PRODUCTS.find(p => p.name === specs.storage) || null,
-        psu: PRODUCTS.find(p => p.name === specs.psu) || null,
-        case: PRODUCTS.find(p => p.name === specs.case) || null,
-        cooler: PRODUCTS.find(p => p.name === specs.cooler) || null
-      };
-      localStorage.setItem('forge_current_build', JSON.stringify(mappedBuild));
-      navigate('/builder');
-    });
+    const listToSearch = productsList.length > 0 ? productsList : PRODUCTS;
+    const mappedBuild = {
+      cpu: listToSearch.find(p => p.name === specs.cpu) || null,
+      gpu: listToSearch.find(p => p.name === specs.gpu) || null,
+      ram: listToSearch.find(p => p.name === specs.ram) || null,
+      motherboard: listToSearch.find(p => p.name === specs.motherboard) || null,
+      ssd: listToSearch.find(p => p.name === specs.storage) || null,
+      psu: listToSearch.find(p => p.name === specs.psu) || null,
+      case: listToSearch.find(p => p.name === specs.case) || null,
+      cooler: listToSearch.find(p => p.name === specs.cooler) || null
+    };
+    localStorage.setItem('forge_current_build', JSON.stringify(mappedBuild));
+    navigate('/builder');
   };
 
   const openComments = (post) => {
@@ -116,7 +151,7 @@ export default function Community() {
               </div>
 
               <div className="absolute bottom-4 right-4 bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full text-xs font-bold border border-blue-500/25">
-                Est: ${post.budget.toFixed(2)}
+                Est: ₹{post.budget.toLocaleString('en-IN')}
               </div>
             </div>
 

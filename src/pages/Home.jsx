@@ -133,10 +133,14 @@ export default function Home() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch('/api/products');
+        const res = await fetch('/api/products?limit=100');
         const data = await res.json();
         if (data.success && data.products && data.products.length > 0) {
-          setProducts(data.products);
+          const mapped = data.products.map(p => ({
+            ...p,
+            id: p.id || p._id
+          }));
+          setProducts(mapped);
         }
       } catch (err) {
         console.warn('Backend offline or error fetching products, using local fallback.');
@@ -357,7 +361,7 @@ export default function Home() {
 
                   {/* Pricing/Action */}
                   <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
-                    <span className="text-lg font-black text-white">${product.price.toFixed(2)}</span>
+                    <span className="text-lg font-black text-white">₹{product.price.toLocaleString('en-IN')}</span>
                     <button
                       onClick={() => quickAdd(product)}
                       className="bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white p-2.5 rounded-xl transition-all cursor-pointer hover:shadow-[0_0_10px_rgba(59,130,246,0.3)]"
@@ -430,7 +434,7 @@ export default function Home() {
                     <p className="font-semibold text-white">Intel Core i9-14900K</p>
                     <p className="text-[10px] text-slate-400">Processor</p>
                   </div>
-                  <span className="font-bold text-slate-350">$589.00</span>
+                  <span className="font-bold text-slate-350">₹58,900</span>
                 </div>
                 
                 <div className="flex items-center gap-3 p-3 bg-[#1E293B] border-l-4 border-blue-500 rounded-r-lg">
@@ -439,7 +443,7 @@ export default function Home() {
                     <p className="font-semibold text-white">ROG Strix RTX 4090 OC</p>
                     <p className="text-[10px] text-slate-400">Graphics Card</p>
                   </div>
-                  <span className="font-bold text-slate-350">$1999.00</span>
+                  <span className="font-bold text-slate-350">₹1,99,900</span>
                 </div>
 
                 <div className="flex items-center gap-3 p-3 bg-orange-500/10 border border-orange-500/30 border-l-4 border-orange-500 rounded-r-lg text-orange-400">
@@ -455,7 +459,7 @@ export default function Home() {
               <div className="mt-6 pt-5 border-t border-white/5 flex justify-between items-center">
                 <div>
                   <p className="text-[10px] text-slate-500 uppercase tracking-wider font-mono">Estimated Price</p>
-                  <p className="text-2xl font-black text-white">$2,588.00</p>
+                  <p className="text-2xl font-black text-white">₹2,58,800</p>
                 </div>
                 <span className="text-[10px] font-mono text-green-400 flex items-center gap-1">
                   ✓ Core Components Compatible
@@ -549,7 +553,7 @@ export default function Home() {
                 <div>
                   <h3 className="text-xl font-bold text-white">{build.name}</h3>
                   <div className="flex items-center gap-4 mt-2 font-mono text-[11px] text-slate-400">
-                    <span>Budget: <strong className="text-white">${build.budget.toFixed(2)}</strong></span>
+                    <span>Budget: <strong className="text-white">₹{build.budget.toLocaleString('en-IN')}</strong></span>
                     <span>Score: <strong className="text-blue-400">98%</strong></span>
                   </div>
                   

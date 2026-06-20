@@ -25,10 +25,14 @@ export default function Compare() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch('/api/products');
+        const res = await fetch('/api/products?limit=100');
         const data = await res.json();
         if (data.success && data.products && data.products.length > 0) {
-          setProducts(data.products);
+          const mapped = data.products.map(p => ({
+            ...p,
+            id: p.id || p._id
+          }));
+          setProducts(mapped);
         }
       } catch (err) {
         console.warn('Backend offline or error fetching products, using local fallback.');
@@ -87,7 +91,7 @@ export default function Compare() {
                 <div>
                   <span className="text-[9px] text-blue-400 uppercase font-mono">{item.category}</span>
                   <p className="text-xs font-bold text-white mt-0.5 line-clamp-1">{item.name}</p>
-                  <p className="text-[10px] text-slate-400 font-mono mt-0.5">${item.price.toFixed(2)}</p>
+                  <p className="text-[10px] text-slate-400 font-mono mt-0.5">₹{item.price.toLocaleString('en-IN')}</p>
                 </div>
                 <button
                   onClick={() => handleAddSuggestion(item.id)}
@@ -126,7 +130,7 @@ export default function Compare() {
                         <div>
                           <span className="text-[9px] text-blue-400 font-mono uppercase">{prod.category}</span>
                           <h4 className="font-bold text-white text-xs leading-tight line-clamp-2 mt-0.5">{prod.name}</h4>
-                          <span className="text-sm font-black text-white font-mono mt-2 block">${prod.price.toFixed(2)}</span>
+                          <span className="text-sm font-black text-white font-mono mt-2 block">₹{prod.price.toLocaleString('en-IN')}</span>
                         </div>
                         <button
                           onClick={() => quickAdd(prod)}

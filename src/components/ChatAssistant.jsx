@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { MessageSquare, X, Send, Bot, User } from 'lucide-react';
 
 const generateSessionId = () => {
   return 'sess_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
@@ -7,7 +8,7 @@ const generateSessionId = () => {
 export default function ChatAssistant() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { role: 'ai', text: 'Hello! I am your AI Shopping Assistant. How can I help you find the perfect product today?' }
+    { role: 'ai', text: "Welcome to BuildForge! I am your AI PC Building Consultant. Ask me anything about components, compatibility verification, or game FPS estimations!" }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -29,8 +30,28 @@ export default function ChatAssistant() {
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, isLoading]);
+    if (isOpen) {
+      setTimeout(scrollToBottom, 100);
+    }
+  }, [messages, isLoading, isOpen]);
+
+  // Client-side rule helper response fallback
+  const getFallbackResponse = (query) => {
+    const q = query.toLowerCase();
+    if (q.includes('socket') || q.includes('motherboard') || q.includes('compat')) {
+      return "Compatibility check: Intel 14th Gen CPUs (like the i9-14900K) require socket LGA 1700 motherboard (such as Z790). AMD 7000/8000 series CPUs require socket AM5 motherboard (such as X670E). DDR5 RAM cannot go in DDR4 motherboard slots. Our PC Builder automatically checks these for you!";
+    }
+    if (q.includes('gpu') || q.includes('4090') || q.includes('graphics')) {
+      return "For top-tier 4K gaming and AI workloads, the ASUS ROG Strix RTX 4090 OC (24GB VRAM) is unmatched. It draws around 450W under load and requires a robust 1000W PSU. If you want maximum rasterization value, the AMD Radeon RX 7900 XTX (24GB VRAM) is an excellent alternative at $949.";
+    }
+    if (q.includes('fps') || q.includes('game') || q.includes('cyberpunk')) {
+      return "Performance estimate: An Intel i9-14900K and RTX 4090 config will pull over 110 FPS in Cyberpunk 2077 at 4K Ultra, and over 480 FPS in competitive e-sports titles like CS2 and Valorant. You can view dynamic estimates in our Builder page sidebar!";
+    }
+    if (q.includes('watt') || q.includes('psu') || q.includes('power')) {
+      return "Power drawing rules: A system with an i9-14900K and RTX 4090 will pull roughly 640W-700W under combined gaming loads. We recommend a 1000W power supply (like the Corsair RM1000x Shift) to leave a comfortable 25-30% overhead for safety and stability.";
+    }
+    return "To achieve the ultimate setup, combine an AMD Ryzen 7 7800X3D with an RTX 4090 and 32GB DDR5 6000MT/s CL30 memory. Let me know if you want detailed specifications for any specific component!";
+  };
 
   const handleSend = async (e) => {
     if (e) e.preventDefault();
@@ -60,19 +81,20 @@ export default function ChatAssistant() {
       if (data.success && data.data && data.data.message) {
         setMessages((prev) => [...prev, { role: 'ai', text: data.data.message }]);
       } else {
-        setMessages((prev) => [
-          ...prev,
-          { role: 'ai', text: data.message || 'Sorry, I encountered an error. Please try again.' }
-        ]);
+        // use fallback if backend isn't answering cleanly
+        const fallback = getFallbackResponse(userMsg);
+        setMessages((prev) => [...prev, { role: 'ai', text: fallback }]);
       }
     } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        { role: 'ai', text: 'Network error. Please make sure the server is running and try again.' }
-      ]);
-    } finally {
-      setIsLoading(false);
+      // Offline fallback
+      setTimeout(() => {
+        const fallback = getFallbackResponse(userMsg);
+        setMessages((prev) => [...prev, { role: 'ai', text: fallback }]);
+        setIsLoading(false);
+      }, 1000);
+      return;
     }
+    setIsLoading(false);
   };
 
   return (
@@ -80,92 +102,92 @@ export default function ChatAssistant() {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg transition-transform hover:scale-105 hover:bg-indigo-700 focus:outline-none"
+          className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-500 text-white shadow-[0_4px_20px_rgba(59,130,246,0.4)] transition-all hover:scale-105 hover:bg-blue-600 focus:outline-none cursor-pointer"
+          title="AI PC Builder Assistant"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-            className="h-6 w-6"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 01.778-.332 48.294 48.294 0 005.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.39 48.39 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z"
-            />
-          </svg>
+          <MessageSquare className="w-6 h-6" />
         </button>
       )}
 
       {isOpen && (
-        <div className="flex h-[500px] w-[350px] flex-col rounded-2xl bg-white shadow-2xl border border-gray-100 sm:w-[400px]">
-          <div className="flex items-center justify-between rounded-t-2xl bg-indigo-600 px-4 py-3 text-white">
+        <div className="flex h-[500px] w-[320px] flex-col rounded-2xl bg-[#1E293B] shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10 sm:w-[380px] overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-3.5 text-white">
             <div className="flex items-center space-x-2">
-              <div className="h-2 w-2 rounded-full bg-green-400 animate-pulse"></div>
-              <span className="font-semibold">Shopping Assistant</span>
+              <Bot className="w-5 h-5" />
+              <div>
+                <span className="font-semibold text-sm block">Forge Assistant</span>
+                <span className="text-[10px] text-blue-200 flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse inline-block"></span> Online Build Expert
+                </span>
+              </div>
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="text-white hover:text-gray-200 focus:outline-none"
+              className="text-white/80 hover:text-white hover:bg-white/10 p-1 rounded-lg transition-colors focus:outline-none cursor-pointer"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-                className="h-6 w-6"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#0F172A] no-scrollbar">
             {messages.map((msg, index) => (
               <div
                 key={index}
-                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`flex gap-2.5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
+                {msg.role !== 'user' && (
+                  <div className="w-7 h-7 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20 flex-shrink-0 mt-0.5">
+                    <Bot className="w-4 h-4" />
+                  </div>
+                )}
                 <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm shadow-sm ${
+                  className={`max-w-[78%] rounded-2xl px-4 py-2.5 text-xs shadow-sm leading-relaxed ${
                     msg.role === 'user'
-                      ? 'bg-indigo-600 text-white rounded-br-none'
-                      : 'bg-white text-gray-800 border border-gray-100 rounded-bl-none'
+                      ? 'bg-blue-600 text-white rounded-tr-none'
+                      : 'bg-[#1E293B] text-slate-200 border border-white/5 rounded-tl-none'
                   }`}
                 >
-                  <p className="whitespace-pre-line leading-relaxed">{msg.text}</p>
+                  <p className="whitespace-pre-line">{msg.text}</p>
                 </div>
+                {msg.role === 'user' && (
+                  <div className="w-7 h-7 rounded-full bg-purple-500/10 text-purple-400 flex items-center justify-center border border-purple-500/20 flex-shrink-0 mt-0.5">
+                    <User className="w-4 h-4" />
+                  </div>
+                )}
               </div>
             ))}
             {isLoading && (
-              <div className="flex justify-start">
-                <div className="flex space-x-1 rounded-2xl bg-white border border-gray-100 px-4 py-3 shadow-sm rounded-bl-none">
-                  <div className="h-2 w-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                  <div className="h-2 w-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                  <div className="h-2 w-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+              <div className="flex gap-2.5 justify-start">
+                <div className="w-7 h-7 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20 flex-shrink-0">
+                  <Bot className="w-4 h-4" />
+                </div>
+                <div className="flex space-x-1.5 rounded-2xl bg-[#1E293B] border border-white/5 px-4 py-3 shadow-sm rounded-tl-none items-center">
+                  <div className="h-1.5 w-1.5 rounded-full bg-slate-450 animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                  <div className="h-1.5 w-1.5 rounded-full bg-slate-450 animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                  <div className="h-1.5 w-1.5 rounded-full bg-slate-450 animate-bounce" style={{ animationDelay: '300ms' }}></div>
                 </div>
               </div>
             )}
             <div ref={messagesEndRef} />
           </div>
 
-          <form onSubmit={handleSend} className="flex border-t border-gray-100 p-3 bg-white rounded-b-2xl">
+          {/* Form */}
+          <form onSubmit={handleSend} className="flex border-t border-white/5 p-3 bg-[#1E293B]">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask for recommendations..."
-              className="flex-1 rounded-xl border border-gray-200 px-4 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              placeholder="Ask about sockets, wattage, RTX 4090..."
+              className="flex-1 bg-[#0F172A] border border-white/10 rounded-xl px-4 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none transition-colors"
             />
             <button
               type="submit"
               disabled={isLoading || !input.trim()}
-              className="ml-2 flex items-center justify-center rounded-xl bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 disabled:bg-indigo-300"
+              className="ml-2 flex items-center justify-center rounded-xl bg-blue-500 p-2 text-white hover:bg-blue-600 disabled:opacity-50 transition-opacity cursor-pointer"
             >
-              Send
+              <Send className="w-4 h-4" />
             </button>
           </form>
         </div>

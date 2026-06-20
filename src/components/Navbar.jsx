@@ -1,241 +1,279 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { Menu, X, Search, ShoppingCart, User, Globe, HelpCircle, ChevronRight } from 'lucide-react';
-import SearchBar from './SearchBar';
+import { Menu, X, Search, ShoppingCart, User, Heart, BarChart3, Wrench, Users, ShieldAlert, Bell } from 'lucide-react';
 
 export default function Navbar() {
   const { cart, setIsCartOpen } = useCart();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [prevScrollPos, setPrevScrollPos] = useState(0);
-  const [visible, setVisible] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
 
-  // Scroll effect to shrink or hide/show header
   useEffect(() => {
     const handleScroll = () => {
-      const currentScrollPos = window.scrollY;
-      setIsScrolled(currentScrollPos > 10);
-      
-      // Hide on scroll down, show on scroll up
-      setVisible(prevScrollPos > currentScrollPos || currentScrollPos < 80);
-      setPrevScrollPos(currentScrollPos);
+      setIsScrolled(window.scrollY > 20);
     };
-
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [prevScrollPos]);
+  }, []);
 
   const totalCartItems = cart.reduce((acc, item) => acc + item.quantity, 0);
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
+      setSearchQuery('');
+    }
+  };
 
   return (
     <>
       <header
-        className={`fixed top-0 w-full z-50 transition-all duration-300 border-b border-slate-200/30 shadow-sm glass-header ${
-          isScrolled ? 'py-3' : 'py-5'
-        } ${visible ? 'translate-y-0' : '-translate-y-full'}`}
+        className={`fixed top-0 w-full z-50 transition-all duration-300 ${
+          isScrolled 
+            ? 'py-3 bg-[#0F172A]/85 backdrop-blur-xl border-b border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.5)]' 
+            : 'py-5 bg-transparent border-b border-white/5'
+        }`}
       >
-        <div className="flex justify-between items-center h-12 px-6 max-w-[1280px] mx-auto w-full">
-          {/* Mobile menu trigger + Logo */}
+        <div className="flex justify-between items-center px-6 max-w-[1440px] mx-auto w-full">
+          {/* Logo & Mobile Menu Button */}
           <div className="flex items-center gap-4">
             <button
               onClick={() => setIsMobileMenuOpen(true)}
-              className="p-2 -ml-2 hover:bg-slate-200/50 rounded-full transition-all md:hidden text-[#0b1c30] flex items-center justify-center cursor-pointer"
-              aria-label="Open navigation menu"
+              className="p-2 -ml-2 text-slate-400 hover:text-white rounded-lg transition-all md:hidden flex items-center justify-center cursor-pointer hover:bg-white/5"
+              aria-label="Open menu"
             >
               <Menu className="w-6 h-6" />
             </button>
             <Link
               to="/"
-              className="font-sans font-extrabold text-[#0b1c30] text-xl tracking-widest uppercase hover:opacity-80 transition-opacity select-none cursor-pointer"
+              className="font-sans font-black text-2xl tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500 hover:opacity-80 transition-opacity select-none cursor-pointer"
             >
-              LUMINA
+              BuildForge
             </Link>
           </div>
 
-          {/* Desktop Navigation links */}
-          <nav className="hidden md:flex gap-10 items-center">
+          {/* Desktop Links */}
+          <nav className="hidden md:flex gap-8 items-center">
+            <NavLink
+              to="/builder"
+              className={({ isActive }) =>
+                `flex items-center gap-1.5 font-sans text-xs tracking-wider font-bold transition-all uppercase select-none cursor-pointer py-1 border-b-2 ${
+                  isActive
+                    ? 'text-blue-400 border-blue-400'
+                    : 'text-slate-400 border-transparent hover:text-blue-400'
+                }`
+              }
+            >
+              <Wrench className="w-3.5 h-3.5" />
+              PC Builder
+            </NavLink>
             <NavLink
               to="/products"
               className={({ isActive }) =>
-                `font-sans text-sm tracking-wide transition-all uppercase select-none cursor-pointer pb-1 ${
+                `font-sans text-xs tracking-wider font-bold transition-all uppercase select-none cursor-pointer py-1 border-b-2 ${
                   isActive
-                    ? 'text-black font-extrabold border-b-2 border-black'
-                    : 'text-slate-500 font-medium hover:text-black'
+                    ? 'text-blue-400 border-blue-400'
+                    : 'text-slate-400 border-transparent hover:text-blue-400'
                 }`
               }
             >
-              Shop All
+              Components
             </NavLink>
             <NavLink
-              to="/products?category=Smart Home"
-              className="font-sans text-sm tracking-wide text-slate-500 hover:text-black font-medium transition-colors uppercase select-none cursor-pointer pb-1"
-            >
-              Smart Home
-            </NavLink>
-            <NavLink
-              to="/collections"
+              to="/compare"
               className={({ isActive }) =>
-                `font-sans text-sm tracking-wide transition-all uppercase select-none cursor-pointer pb-1 ${
+                `flex items-center gap-1.5 font-sans text-xs tracking-wider font-bold transition-all uppercase select-none cursor-pointer py-1 border-b-2 ${
                   isActive
-                    ? 'text-black font-extrabold border-b-2 border-black'
-                    : 'text-slate-500 font-medium hover:text-black'
+                    ? 'text-blue-400 border-blue-400'
+                    : 'text-slate-400 border-transparent hover:text-blue-400'
                 }`
               }
             >
-              Collections
+              <BarChart3 className="w-3.5 h-3.5" />
+              Compare
             </NavLink>
-            <Link
-              to="/"
-              className="font-sans text-sm tracking-wide text-slate-500 hover:text-black font-medium transition-colors uppercase select-none cursor-pointer pb-1"
+            <NavLink
+              to="/community"
+              className={({ isActive }) =>
+                `flex items-center gap-1.5 font-sans text-xs tracking-wider font-bold transition-all uppercase select-none cursor-pointer py-1 border-b-2 ${
+                  isActive
+                    ? 'text-blue-400 border-blue-400'
+                    : 'text-slate-400 border-transparent hover:text-blue-400'
+                }`
+              }
             >
-              Journal
-            </Link>
+              <Users className="w-3.5 h-3.5" />
+              Showcase
+            </NavLink>
+            <NavLink
+              to="/admin"
+              className={({ isActive }) =>
+                `flex items-center gap-1.5 font-sans text-xs tracking-wider font-bold transition-all uppercase select-none cursor-pointer py-1 border-b-2 ${
+                  isActive
+                    ? 'text-purple-400 border-purple-400'
+                    : 'text-slate-400 border-transparent hover:text-purple-400'
+                }`
+              }
+            >
+              <ShieldAlert className="w-3.5 h-3.5" />
+              Admin
+            </NavLink>
           </nav>
 
-          {/* User icons */}
+          {/* Right Action Icons & Search */}
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setIsSearchOpen(!isSearchOpen)}
-              className={`p-2 hover:bg-slate-200/50 rounded-full transition-all text-[#0b1c30] flex items-center justify-center cursor-pointer ${
-                isSearchOpen ? 'bg-slate-200/50' : ''
-              }`}
-              aria-label="Search items"
-            >
-              <Search className="w-5 h-5" />
+            {/* Search Input Box */}
+            <form onSubmit={handleSearchSubmit} className="relative hidden lg:block group">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
+              <input
+                type="text"
+                placeholder="Search CPUs, GPUs, RAM, SSDs..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-[#0F172A] border border-[#334155] rounded-full py-1.5 pl-9 pr-4 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-transparent transition-all w-60 group-hover:border-slate-500"
+              />
+            </form>
+
+            {/* Notifications */}
+            <button className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/5 transition-all cursor-pointer relative hidden sm:flex items-center justify-center">
+              <Bell className="w-4 h-4" />
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-blue-500 rounded-full animate-ping"></span>
             </button>
-            
+
+            {/* Wishlist Link */}
+            <Link
+              to="/profile"
+              className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/5 transition-all cursor-pointer hidden sm:flex items-center justify-center"
+              title="Saved Builds & Wishlist"
+            >
+              <Heart className="w-4 h-4" />
+            </Link>
+
+            {/* Shopping Cart Trigger */}
             <button
               onClick={() => setIsCartOpen(true)}
-              className="p-2 hover:bg-slate-200/50 rounded-full transition-all select-none relative text-[#0b1c30] flex items-center justify-center cursor-pointer"
+              className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/5 transition-all relative flex items-center justify-center cursor-pointer"
               aria-label="Shopping Cart"
             >
-              <ShoppingCart className="w-5 h-5" />
+              <ShoppingCart className="w-4 h-4" />
               {totalCartItems > 0 && (
-                <span className="absolute top-1 right-1 w-4 h-4 bg-black text-white text-[10px] font-bold flex items-center justify-center rounded-full animate-pulse font-sans">
+                <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-blue-500 text-white text-[9px] font-bold flex items-center justify-center rounded-full animate-pulse font-sans">
                   {totalCartItems}
                 </span>
               )}
             </button>
-            
+
+            {/* User Profile */}
             <Link
               to={localStorage.getItem('token') ? "/profile" : "/login"}
-              className="p-2 hover:bg-slate-200/50 rounded-full transition-all text-[#0b1c30] hidden sm:flex items-center justify-center cursor-pointer"
-              aria-label="User account"
+              className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/5 transition-all flex items-center justify-center cursor-pointer"
+              aria-label="User Account"
             >
-              <User className="w-5 h-5" />
+              <User className="w-4 h-4" />
             </Link>
-          </div>
-        </div>
-
-        {/* Global Slide-down search overlay */}
-        <div
-          className={`absolute left-0 w-full bg-white border-b border-slate-200 shadow-md transition-all duration-300 ease-out overflow-hidden z-40 ${
-            isSearchOpen ? 'max-h-20 opacity-100 py-4 px-6 visible' : 'max-h-0 opacity-0 invisible'
-          }`}
-        >
-          <div className="max-w-[1280px] mx-auto w-full flex items-center gap-4">
-            <SearchBar
-              isGlobal={true}
-              onSearchComplete={() => setIsSearchOpen(false)}
-              className="flex-grow"
-              placeholder="Search modern items (e.g. overcoat, sneakers, vector lamp)..."
-            />
-            <button
-              onClick={() => setIsSearchOpen(false)}
-              className="text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-black cursor-pointer px-2 py-1"
-            >
-              Cancel
-            </button>
           </div>
         </div>
       </header>
 
-      {/* Side Menu Drawer (Overlay on Mobile) */}
+      {/* Mobile Drawer */}
       <div
         className={`fixed inset-0 z-[60] transition-transform duration-500 ease-out ${
           isMobileMenuOpen ? 'translate-x-0' : 'pointer-events-none'
         }`}
       >
-        {/* Backdrop overlay */}
         <div
           onClick={() => setIsMobileMenuOpen(false)}
-          className={`absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300 ${
+          className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${
             isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
         />
 
-        {/* Navigation Drawer Container */}
         <nav
-          className={`relative w-[80%] max-w-[320px] h-full bg-white p-6 flex flex-col shadow-2xl transition-transform duration-500 ease-out ${
+          className={`relative w-[80%] max-w-[280px] h-full bg-[#111827] border-r border-white/5 p-6 flex flex-col shadow-2xl transition-transform duration-500 ease-out ${
             isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
-          <div className="flex justify-between items-center mb-10">
-            <span className="font-extrabold text-xl tracking-widest text-black">LUMINA</span>
+          <div className="flex justify-between items-center mb-8">
+            <span className="font-black text-lg text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">BuildForge</span>
             <button
               onClick={() => setIsMobileMenuOpen(false)}
-              className="p-2 hover:bg-slate-200/50 rounded-full flex items-center justify-center cursor-pointer"
-              aria-label="Close menu"
+              className="p-1.5 hover:bg-white/5 text-slate-400 hover:text-white rounded-lg flex items-center justify-center cursor-pointer"
             >
-              <X className="w-6 h-6 text-slate-700" />
+              <X className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="flex flex-col gap-6">
+          {/* Mobile Search */}
+          <form onSubmit={handleSearchSubmit} className="relative mb-6">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search hardware..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-[#0F172A] border border-[#334155] rounded-full py-1.5 pl-9 pr-4 text-xs text-white focus:outline-none w-full"
+            />
+          </form>
+
+          {/* Mobile Links */}
+          <div className="flex flex-col gap-4">
+            <Link
+              to="/builder"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="font-bold text-xs uppercase tracking-wider text-slate-300 hover:text-blue-400 py-2 border-b border-white/5"
+            >
+              PC Builder
+            </Link>
             <Link
               to="/products"
               onClick={() => setIsMobileMenuOpen(false)}
-              className="font-semibold text-base py-2 border-b border-slate-100 text-slate-800 text-left cursor-pointer flex justify-between items-center"
+              className="font-bold text-xs uppercase tracking-wider text-slate-300 hover:text-blue-400 py-2 border-b border-white/5"
             >
-              <span>Shop All</span>
-              <ChevronRight className="w-4 h-4 text-slate-400" />
+              Browse Components
             </Link>
             <Link
-              to="/products?category=Smart Home"
+              to="/compare"
               onClick={() => setIsMobileMenuOpen(false)}
-              className="font-semibold text-base py-2 border-b border-slate-100 text-slate-600 hover:text-slate-800 text-left cursor-pointer flex justify-between items-center"
+              className="font-bold text-xs uppercase tracking-wider text-slate-300 hover:text-blue-400 py-2 border-b border-white/5"
             >
-              <span>Smart Home</span>
-              <ChevronRight className="w-4 h-4 text-slate-400" />
+              Compare Parts
             </Link>
             <Link
-              to="/collections"
+              to="/community"
               onClick={() => setIsMobileMenuOpen(false)}
-              className="font-semibold text-base py-2 border-b border-slate-100 text-slate-600 hover:text-slate-800 text-left cursor-pointer flex justify-between items-center"
+              className="font-bold text-xs uppercase tracking-wider text-slate-300 hover:text-blue-400 py-2 border-b border-white/5"
             >
-              <span>Collections</span>
-              <ChevronRight className="w-4 h-4 text-slate-400" />
+              Community Builds
             </Link>
             <Link
-              to="/"
+              to="/admin"
               onClick={() => setIsMobileMenuOpen(false)}
-              className="font-semibold text-base py-2 border-b border-slate-100 text-slate-600 hover:text-slate-800 text-left cursor-pointer flex justify-between items-center"
+              className="font-bold text-xs uppercase tracking-wider text-purple-400 hover:text-purple-300 py-2 border-b border-white/5"
             >
-              <span>Journal</span>
-              <ChevronRight className="w-4 h-4 text-slate-400" />
+              Admin Panel
             </Link>
           </div>
 
-          <div className="mt-auto pt-8 space-y-4 border-t border-slate-100">
+          <div className="mt-auto pt-6 border-t border-white/5 flex flex-col gap-3">
             <Link
               to={localStorage.getItem('token') ? "/profile" : "/login"}
               onClick={() => setIsMobileMenuOpen(false)}
-              className="flex items-center gap-3 text-slate-600 cursor-pointer hover:text-black transition-colors"
+              className="flex items-center gap-2 text-xs font-medium text-slate-400 hover:text-white"
             >
-              <User className="w-5 h-5 text-slate-400" />
-              <span className="text-sm font-medium">My Account</span>
+              <User className="w-4 h-4" />
+              My Profile
             </Link>
-            <div className="flex items-center gap-3 text-slate-600">
-              <HelpCircle className="w-5 h-5 text-slate-400" />
-              <span className="text-sm font-medium">Customer Support</span>
-            </div>
-            <div className="flex items-center gap-3 text-slate-600">
-              <Globe className="w-5 h-5 text-slate-400" />
-              <span className="text-sm font-medium">English / USD</span>
-            </div>
+            <Link
+              to="/profile"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex items-center gap-2 text-xs font-medium text-slate-400 hover:text-white"
+            >
+              <Heart className="w-4 h-4" />
+              Saved Builds
+            </Link>
           </div>
         </nav>
       </div>

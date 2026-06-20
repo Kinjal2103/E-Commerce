@@ -29,6 +29,7 @@ const seedDatabase = async () => {
 
     const seededProducts = products.map((p) => ({
       ...p,
+      _id: p.id,
       stock: p.stock !== undefined ? p.stock : 15
     }));
 

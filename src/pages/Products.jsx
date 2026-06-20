@@ -1,161 +1,260 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import ProductCard from '../components/ProductCard';
-import Sidebar from '../components/Sidebar';
-import { SearchX, RotateCcw } from 'lucide-react';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useCart } from '../context/CartContext';
+import { PRODUCTS } from '../data/hardwareData';
+import { Search, Grid, List, Star, Heart, CheckCircle2, AlertTriangle, Filter, RotateCcw } from 'lucide-react';
 
 export default function Products() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { quickAdd } = useCart();
 
-  // Dataset states from backend
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Layout View State
+  const [isGridView, setIsGridView] = useState(true);
 
-  // Filters States
+  // Filters State
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [selectedRoom, setSelectedRoom] = useState('All');
-  const [selectedAesthetic, setSelectedAesthetic] = useState('All');
-  const [selectedColor, setSelectedColor] = useState('All');
-  const [selectedSize, setSelectedSize] = useState('All');
-  const [maxPrice, setMaxPrice] = useState(100000);
+  const [selectedBrands, setSelectedBrands] = useState([]);
+  const [minPrice, setMinPrice] = useState(0);
+  const [maxPrice, setMaxPrice] = useState(2500);
+  const [selectedSockets, setSelectedSockets] = useState([]);
+  const [selectedRamTypes, setSelectedRamTypes] = useState([]);
+  const [selectedVramSizes, setSelectedVramSizes] = useState([]);
+  const [selectedCapacities, setSelectedCapacities] = useState([]);
+  const [rgbSupport, setRgbSupport] = useState('All'); // 'All' | 'Yes' | 'No'
+  const [inStockOnly, setInStockOnly] = useState(false);
+  const [minRating, setMinRating] = useState(0);
   const [sortBy, setSortBy] = useState('featured');
 
-  // Load products from backend Express API on mount
+  // Checking builder context flow
+  const builderSelectCategory = searchParams.get('selectForBuilder');
+
+  const [products, setProducts] = useState(PRODUCTS);
+
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        setLoading(true);
         const res = await fetch('/api/products');
         const data = await res.json();
-        if (data.success) {
+        if (data.success && data.products && data.products.length > 0) {
           setProducts(data.products);
         }
       } catch (err) {
-        console.error('Error fetching products from backend:', err);
-      } finally {
-        setLoading(false);
+        console.warn('Backend offline or error fetching products, using local fallback.');
       }
     };
     fetchProducts();
   }, []);
 
-  // Synchronize initial filters with URL parameters
+  // Sync state from query parameters on mount or param updates
   useEffect(() => {
-    const catParam = searchParams.get('category');
-    const searchParam = searchParams.get('search');
-    const roomParam = searchParams.get('room');
-    const aestheticParam = searchParams.get('aesthetic');
-
-    if (catParam) {
-      setSelectedCategory(catParam);
+    const cat = searchParams.get('category');
+    const q = searchParams.get('search');
+    if (cat) {
+      setSelectedCategory(cat);
+    } else if (builderSelectCategory) {
+      setSelectedCategory(builderSelectCategory);
+    } else {
+      setSelectedCategory('All');
     }
-    if (searchParam) {
-      setSearchTerm(searchParam);
+    if (q) {
+      setSearchTerm(q);
     }
-    if (roomParam) {
-      setSelectedRoom(roomParam);
-    }
-    if (aestheticParam) {
-      setSelectedAesthetic(aestheticParam);
-    }
-  }, [searchParams]);
+  }, [searchParams, builderSelectCategory]);
 
-  // Static list of possible colors to filter by
-  const AVAILABLE_COLORS = [
-    { name: 'Black / Onyx', matches: ['black', 'onyx', 'charcoal', 'dark'] },
-    { name: 'White / Cream', matches: ['white', 'cream', 'bone', 'optic', 'clear', 'soft white', 'pristine', 'alabaster'] },
-    { name: 'Gray / Silver', matches: ['gray', 'grey', 'silver', 'slate', 'brushed', 'metal', 'steel', 'cement'] },
-    { name: 'Blue / Green', matches: ['blue', 'navy', 'mist', 'green', 'spring'] },
-    { name: 'Wood / Tan / Brass', matches: ['tan', 'sand', 'beige', 'brown', 'cognac', 'oak', 'oatmeal', 'ashwood', 'brass', 'walnut'] }
-  ];
+  // Brand Options List
+  const brands = useMemo(() => {
+    return Array.from(new Set(products.map((p) => p.brand)));
+  }, [products]);
 
-  // Static list of possible sizes
-  const AVAILABLE_SIZES = ['Standard', 'Large', 'One Size', 'E26 Standard', 'Medium', '84-inch', '96-inch', '3 Meter', '5 Meter', '6-Seater', '8-Seater', '16x16"', '24x24"', '24-inch', '32-inch'];
-
-  // Modern Categories list
-  const CATEGORIES = ['All', 'Smart Home', 'Lighting', 'Office', 'Dining', 'Small Decor'];
-
-  // Premium Room lists
-  const ROOMS = ['All', 'Bedroom', 'Kitchen', 'Study Room', 'Balcony', 'Gaming Setup', 'Office Space', 'Living Room'];
-
-  // Premium Aesthetic lists
-  const AESTHETICS = ['All', 'Minimalist', 'Scandinavian', 'Japanese Zen', 'Luxury Modern', 'Industrial', 'Bohemian', 'Dark Academia', 'Cozy Bedroom'];
-
-  // Clear all states
-  const handleClearAllFilters = () => {
-    setSearchTerm('');
-    setSelectedCategory('All');
-    setSelectedRoom('All');
-    setSelectedAesthetic('All');
-    setSelectedColor('All');
-    setSelectedSize('All');
-    setMaxPrice(100000);
-    setSortBy('featured');
-    setSearchParams({}); // Clear query params
+  const handleBrandChange = (brandName) => {
+    setSelectedBrands(prev => 
+      prev.includes(brandName) 
+        ? prev.filter(b => b !== brandName) 
+        : [...prev, brandName]
+    );
   };
 
-  // Perform dynamic filtering and sorting combined inside useMemo
+  const handleSocketChange = (socketName) => {
+    setSelectedSockets(prev => 
+      prev.includes(socketName) 
+        ? prev.filter(s => s !== socketName) 
+        : [...prev, socketName]
+    );
+  };
+
+  const handleRamTypeChange = (ramName) => {
+    setSelectedRamTypes(prev => 
+      prev.includes(ramName) 
+        ? prev.filter(r => r !== ramName) 
+        : [...prev, ramName]
+    );
+  };
+
+  const handleVramChange = (vramSize) => {
+    setSelectedVramSizes(prev => 
+      prev.includes(vramSize) 
+        ? prev.filter(v => v !== vramSize) 
+        : [...prev, vramSize]
+    );
+  };
+
+  const handleCapacityChange = (capSize) => {
+    setSelectedCapacities(prev => 
+      prev.includes(capSize) 
+        ? prev.filter(c => c !== capSize) 
+        : [...prev, capSize]
+    );
+  };
+
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setSelectedCategory('All');
+    setSelectedBrands([]);
+    setMinPrice(0);
+    setMaxPrice(2500);
+    setSelectedSockets([]);
+    setSelectedRamTypes([]);
+    setSelectedVramSizes([]);
+    setSelectedCapacities([]);
+    setRgbSupport('All');
+    setInStockOnly(false);
+    setMinRating(0);
+    setSortBy('featured');
+    setSearchParams({});
+  };
+
+  // Main list of compare IDs stored in local storage
+  const [comparedIds, setComparedIds] = useState(() => {
+    try {
+      const stored = localStorage.getItem('compare_ids');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const toggleCompare = (productId) => {
+    let updated;
+    if (comparedIds.includes(productId)) {
+      updated = comparedIds.filter(id => id !== productId);
+    } else {
+      if (comparedIds.length >= 4) {
+        alert("You can compare up to 4 products at a time!");
+        return;
+      }
+      updated = [...comparedIds, productId];
+    }
+    setComparedIds(updated);
+    localStorage.setItem('compare_ids', JSON.stringify(updated));
+  };
+
+  // Add parts directly to PC Builder slots
+  const handleAddToBuilder = (product) => {
+    try {
+      const savedBuild = localStorage.getItem('forge_current_build');
+      const currentBuild = savedBuild ? JSON.parse(savedBuild) : {};
+      
+      // Map component category to builder slot key
+      const slotMap = {
+        'CPUs': 'cpu',
+        'Motherboards': 'motherboard',
+        'GPUs': 'gpu',
+        'RAM': 'ram',
+        'Storage': 'ssd',
+        'Power Supplies': 'psu',
+        'Cases': 'case',
+        'Cooling': 'cooler'
+      };
+
+      const slotKey = slotMap[product.category];
+      if (slotKey) {
+        currentBuild[slotKey] = product;
+        localStorage.setItem('forge_current_build', JSON.stringify(currentBuild));
+        // Redirect back to Builder
+        navigate('/builder');
+      }
+    } catch (e) {
+      console.error("Error writing to builder:", e);
+    }
+  };
+
+  // Core filter logic
   const filteredProducts = useMemo(() => {
     let result = [...products];
 
-    // 1. Search Query
-    if (searchTerm.trim() !== '') {
+    // Category
+    if (selectedCategory !== 'All') {
+      result = result.filter(p => p.category.toLowerCase() === selectedCategory.toLowerCase());
+    }
+
+    // Search query
+    if (searchTerm.trim()) {
       const query = searchTerm.toLowerCase();
       result = result.filter(
-        (p) =>
-          p.name.toLowerCase().includes(query) ||
-          p.description.toLowerCase().includes(query) ||
-          p.category.toLowerCase().includes(query) ||
-          p.room?.toLowerCase().includes(query) ||
-          p.aesthetic?.toLowerCase().includes(query)
+        p => p.name.toLowerCase().includes(query) || 
+             p.brand.toLowerCase().includes(query) || 
+             p.category.toLowerCase().includes(query)
       );
     }
 
-    // 2. Category Filter
-    if (selectedCategory !== 'All') {
-      result = result.filter(
-        (p) => p.category.toLowerCase() === selectedCategory.toLowerCase()
-      );
+    // Brands
+    if (selectedBrands.length > 0) {
+      result = result.filter(p => selectedBrands.includes(p.brand));
     }
 
-    // 3. Room Filter
-    if (selectedRoom !== 'All') {
-      result = result.filter(
-        (p) => p.room?.toLowerCase() === selectedRoom.toLowerCase()
-      );
+    // Price
+    result = result.filter(p => p.price >= minPrice && p.price <= maxPrice);
+
+    // Socket Type (CPU & Motherboards)
+    if (selectedSockets.length > 0) {
+      result = result.filter(p => {
+        const socket = p.specs?.['Socket Type'];
+        return socket && selectedSockets.includes(socket);
+      });
     }
 
-    // 4. Aesthetic Filter
-    if (selectedAesthetic !== 'All') {
-      result = result.filter(
-        (p) => p.aesthetic?.toLowerCase() === selectedAesthetic.toLowerCase()
-      );
+    // RAM Type (RAM & Motherboards)
+    if (selectedRamTypes.length > 0) {
+      result = result.filter(p => {
+        const ramType = p.specs?.['Type'] || p.specs?.['RAM slots'] || p.specs?.['RAM Support'];
+        return ramType && selectedRamTypes.some(rt => ramType.includes(rt));
+      });
     }
 
-    // 5. Color Filter
-    if (selectedColor !== 'All') {
-      const colorQueryGroup = AVAILABLE_COLORS.find(c => c.name === selectedColor);
-      if (colorQueryGroup) {
-        result = result.filter((p) => {
-          return p.colors?.some((c) =>
-            colorQueryGroup.matches.some((m) => c.name.toLowerCase().includes(m))
-          );
-        });
-      }
+    // VRAM size (GPUs)
+    if (selectedVramSizes.length > 0) {
+      result = result.filter(p => {
+        const vram = p.specs?.['VRAM'];
+        return vram && selectedVramSizes.some(v => vram.includes(v));
+      });
     }
 
-    // 6. Size Filter
-    if (selectedSize !== 'All') {
-      result = result.filter((p) =>
-        p.sizes?.some((s) => s.toLowerCase() === selectedSize.toLowerCase())
-      );
+    // Storage capacity (SSDs)
+    if (selectedCapacities.length > 0) {
+      result = result.filter(p => {
+        const cap = p.specs?.['Capacity'];
+        return cap && selectedCapacities.some(c => cap.includes(c));
+      });
     }
 
-    // 7. Price Filter
-    result = result.filter((p) => p.price <= maxPrice);
+    // RGB support
+    if (rgbSupport !== 'All') {
+      result = result.filter(p => p.specs?.['RGB Support'] === rgbSupport);
+    }
 
-    // 8. Sorting Logic
+    // Stock Status
+    if (inStockOnly) {
+      result = result.filter(p => p.stock > 0);
+    }
+
+    // Star rating
+    if (minRating > 0) {
+      result = result.filter(p => p.rating >= minRating);
+    }
+
+    // Sorting
     if (sortBy === 'price-asc') {
       result.sort((a, b) => a.price - b.price);
     } else if (sortBy === 'price-desc') {
@@ -163,7 +262,6 @@ export default function Products() {
     } else if (sortBy === 'rating') {
       result.sort((a, b) => b.rating - a.rating);
     } else {
-      // 'featured' - preserve defined order or highlight isFeatured/isTrending
       result.sort((a, b) => {
         const scoreA = (a.isFeatured ? 2 : 0) + (a.isTrending ? 1 : 0);
         const scoreB = (b.isFeatured ? 2 : 0) + (b.isTrending ? 1 : 0);
@@ -172,166 +270,425 @@ export default function Products() {
     }
 
     return result;
-  }, [products, searchTerm, selectedCategory, selectedRoom, selectedAesthetic, selectedColor, selectedSize, maxPrice, sortBy]);
-
-  // Active filter count calculation
-  const activeFiltersCount = [
-    searchTerm !== '',
-    selectedCategory !== 'All',
-    selectedRoom !== 'All',
-    selectedAesthetic !== 'All',
-    selectedColor !== 'All',
-    selectedSize !== 'All',
-    maxPrice < 100000
-  ].filter(Boolean).length;
+  }, [
+    products, selectedCategory, searchTerm, selectedBrands, minPrice, maxPrice, 
+    selectedSockets, selectedRamTypes, selectedVramSizes, selectedCapacities, 
+    rgbSupport, inStockOnly, minRating, sortBy
+  ]);
 
   return (
-    <div className="max-w-[1280px] mx-auto px-6 py-6 font-sans">
-      {/* Editorial Header */}
-      <div className="mb-8 border-b border-slate-200 pb-6 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-        <div>
-          <span className="text-xs uppercase tracking-widest text-slate-400 font-bold">LUMINA INTERIOR MATRIX</span>
-          <h1 className="text-3xl font-extrabold text-[#0b1c30] mt-1">Shop Premium Interiors</h1>
-          <p className="text-xs text-slate-500 mt-2">
-            Refined collection of smart home appliances, high-contrast ambient lighting, designer office nodes, and minimal wabi-sabi decor.
-          </p>
-        </div>
-        
-        {/* Sort Trigger */}
-        <div className="flex items-center gap-2 self-stretch md:self-auto justify-end">
-          <label htmlFor="sort-select" className="text-xs text-slate-450 uppercase tracking-wider font-bold">SortBy:</label>
-          <select
-            id="sort-select"
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="bg-white border border-slate-200 text-[#0b1c30] text-xs px-3 py-2 rounded focus:outline-none focus:border-black transition-colors font-semibold cursor-pointer"
-          >
-            <option value="featured">Featured Picks</option>
-            <option value="price-asc">Price: Low to High</option>
-            <option value="price-desc">Price: High to Low</option>
-            <option value="rating">Highest Rated</option>
-          </select>
-        </div>
+    <div className="max-w-[1440px] mx-auto px-6 md:px-8 py-10 font-sans mt-8 min-h-screen">
+      {/* Title */}
+      <div className="mb-8 border-b border-white/5 pb-6 text-left">
+        <span className="text-[10px] tracking-widest text-blue-400 font-bold uppercase">Discover PC Hardware</span>
+        <h1 className="text-3xl font-black text-white mt-1">Component Marketplace</h1>
+        {builderSelectCategory && (
+          <div className="mt-3 p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl text-blue-400 text-xs flex items-center gap-2">
+            <span className="animate-pulse h-2 w-2 rounded-full bg-blue-400"></span>
+            Currently filtering for <strong className="text-white">{builderSelectCategory}</strong> to add to your custom PC build.
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* ========= SIDEBAR FILTERS PANEL ========= */}
-        <Sidebar
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          selectedCategory={selectedCategory}
-          setSelectedCategory={setSelectedCategory}
-          selectedColor={selectedColor}
-          setSelectedColor={setSelectedColor}
-          selectedSize={selectedSize}
-          setSelectedSize={setSelectedSize}
-          maxPrice={maxPrice}
-          setMaxPrice={setMaxPrice}
-          onClear={handleClearAllFilters}
-          activeFiltersCount={activeFiltersCount}
-          CATEGORIES={CATEGORIES}
-          AVAILABLE_COLORS={AVAILABLE_COLORS}
-          AVAILABLE_SIZES={AVAILABLE_SIZES}
-          selectedRoom={selectedRoom}
-          setSelectedRoom={setSelectedRoom}
-          ROOMS={ROOMS}
-          selectedAesthetic={selectedAesthetic}
-          setSelectedAesthetic={setSelectedAesthetic}
-          AESTHETICS={AESTHETICS}
-        />
-
-        {/* ========= PRODUCT LISTING GRID ========= */}
-        <div className="lg:col-span-3 space-y-6">
-          {/* Active Chips row banner */}
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-lg border border-slate-200/50 shadow-xs">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400 font-bold uppercase tracking-widest">
-                Showing:
-              </span>
-              <span className="text-xs font-bold text-slate-800">
-                {filteredProducts.length} of {products.length} aesthetic items found
-              </span>
+        {/* Sidebar Filters */}
+        <aside className="lg:col-span-1 glass-panel p-6 rounded-2xl flex flex-col gap-6 h-fit text-left">
+          <div className="flex justify-between items-center pb-4 border-b border-white/5">
+            <div className="flex items-center gap-2 font-bold text-sm text-white">
+              <Filter className="w-4 h-4 text-blue-400" />
+              Filters
             </div>
-
-            {/* active badges array list */}
-            {activeFiltersCount > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {selectedCategory !== 'All' && (
-                  <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide border border-slate-200 font-sans">
-                    Category: {selectedCategory}
-                    <button onClick={() => setSelectedCategory('All')} className="hover:text-black font-semibold ml-1">&times;</button>
-                  </span>
-                )}
-                {selectedRoom !== 'All' && (
-                  <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide border border-slate-200 font-sans">
-                    Room: {selectedRoom}
-                    <button onClick={() => setSelectedRoom('All')} className="hover:text-black font-semibold ml-1">&times;</button>
-                  </span>
-                )}
-                {selectedAesthetic !== 'All' && (
-                  <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide border border-slate-200 font-sans">
-                    Aesthetic: {selectedAesthetic}
-                    <button onClick={() => setSelectedAesthetic('All')} className="hover:text-black font-semibold ml-1">&times;</button>
-                  </span>
-                )}
-                {selectedColor !== 'All' && (
-                  <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide border border-slate-200 font-sans">
-                    Color: {selectedColor}
-                    <button onClick={() => setSelectedColor('All')} className="hover:text-black font-semibold ml-1">&times;</button>
-                  </span>
-                )}
-                {selectedSize !== 'All' && (
-                  <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide border border-slate-200 font-sans">
-                    Size: {selectedSize}
-                    <button onClick={() => setSelectedSize('All')} className="hover:text-black font-semibold ml-1">&times;</button>
-                  </span>
-                )}
-                {maxPrice < 100000 && (
-                  <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide border border-slate-200 font-sans">
-                    &lt; ₹{maxPrice.toLocaleString('en-IN')}
-                    <button onClick={() => setMaxPrice(100000)} className="hover:text-black font-semibold ml-1">&times;</button>
-                  </span>
-                )}
-              </div>
-            )}
+            <button
+              onClick={clearAllFilters}
+              className="text-xs text-slate-400 hover:text-blue-400 flex items-center gap-1 transition-colors cursor-pointer"
+            >
+              <RotateCcw className="w-3 h-3" />
+              Reset
+            </button>
           </div>
 
-          {/* Actual items list Grid */}
-          {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="aspect-[3/4] bg-white border border-slate-100 rounded-lg animate-pulse flex flex-col justify-end p-4 space-y-3">
-                  <div className="h-4 w-1/3 bg-slate-200 rounded"></div>
-                  <div className="h-6 w-3/4 bg-slate-200 rounded"></div>
-                  <div className="h-4 w-1/2 bg-slate-200 rounded"></div>
-                </div>
+          {/* Categories select list */}
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-slate-400 font-bold mb-2">Category</label>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="w-full bg-[#0F172A] border border-white/10 text-slate-350 text-xs rounded-xl p-2.5 focus:border-blue-500 focus:outline-none"
+            >
+              <option value="All">All Categories</option>
+              <option value="CPUs">Processors (CPUs)</option>
+              <option value="GPUs">Graphics Cards (GPUs)</option>
+              <option value="Motherboards">Motherboards</option>
+              <option value="RAM">Memory (RAM)</option>
+              <option value="Storage">Storage SSDs</option>
+              <option value="Power Supplies">Power Supplies (PSUs)</option>
+              <option value="Cases">Cabinet Cases</option>
+              <option value="Cooling">Coolers & Fans</option>
+            </select>
+          </div>
+
+          {/* Price range */}
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-slate-400 font-bold mb-2">Price Limit</label>
+            <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+              <span>$0</span>
+              <span className="text-white font-bold font-mono">${maxPrice}</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="2500"
+              step="50"
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(Number(e.target.value))}
+              className="w-full h-1 bg-[#1E293B] rounded-lg appearance-none cursor-pointer accent-blue-500"
+            />
+          </div>
+
+          {/* Brands list */}
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-slate-400 font-bold mb-2">Brand</label>
+            <div className="space-y-2 max-h-40 overflow-y-auto pr-2 no-scrollbar text-xs">
+              {brands.map((brand) => (
+                <label key={brand} className="flex items-center gap-2.5 text-slate-350 hover:text-white cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={selectedBrands.includes(brand)}
+                    onChange={() => handleBrandChange(brand)}
+                    className="rounded border-white/10 bg-[#0F172A] text-blue-500 focus:ring-0 focus:ring-offset-0"
+                  />
+                  <span className="group-hover:text-blue-400 transition-colors">{brand}</span>
+                </label>
               ))}
             </div>
-          ) : filteredProducts.length === 0 ? (
-            <div className="h-[400px] bg-white border border-slate-200/50 rounded-lg flex flex-col items-center justify-center p-8 text-center">
-              <SearchX className="text-slate-350 w-16 h-16 stroke-[1.2] mb-4" />
-              <h3 className="text-base font-bold text-slate-800">No products match your parameters</h3>
-              <p className="text-xs text-slate-500 max-w-xs mt-1.5 leading-relaxed font-sans">
-                Adjust or clear filters to locate premium modern interior assets.
-              </p>
+          </div>
+
+          {/* Socket types */}
+          {(selectedCategory === 'All' || selectedCategory === 'CPUs' || selectedCategory === 'Motherboards') && (
+            <div>
+              <label className="block text-xs uppercase tracking-wider text-slate-400 font-bold mb-2">Socket Type</label>
+              <div className="space-y-2 text-xs">
+                {['LGA 1700', 'AM5'].map((sock) => (
+                  <label key={sock} className="flex items-center gap-2.5 text-slate-350 hover:text-white cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedSockets.includes(sock)}
+                      onChange={() => handleSocketChange(sock)}
+                      className="rounded border-white/10 bg-[#0F172A] text-blue-500 focus:ring-0"
+                    />
+                    <span>{sock}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* RAM Generation */}
+          {(selectedCategory === 'All' || selectedCategory === 'RAM' || selectedCategory === 'Motherboards') && (
+            <div>
+              <label className="block text-xs uppercase tracking-wider text-slate-400 font-bold mb-2">Memory Type</label>
+              <div className="space-y-2 text-xs">
+                {['DDR5', 'DDR4'].map((ram) => (
+                  <label key={ram} className="flex items-center gap-2.5 text-slate-350 hover:text-white cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedRamTypes.includes(ram)}
+                      onChange={() => handleRamTypeChange(ram)}
+                      className="rounded border-white/10 bg-[#0F172A] text-blue-500 focus:ring-0"
+                    />
+                    <span>{ram}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* GPU VRAM sizes */}
+          {(selectedCategory === 'All' || selectedCategory === 'GPUs') && (
+            <div>
+              <label className="block text-xs uppercase tracking-wider text-slate-400 font-bold mb-2">VRAM Buffer</label>
+              <div className="space-y-2 text-xs">
+                {['24GB', '16GB', '12GB', '8GB'].map((vr) => (
+                  <label key={vr} className="flex items-center gap-2.5 text-slate-350 hover:text-white cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedVramSizes.includes(vr)}
+                      onChange={() => handleVramChange(vr)}
+                      className="rounded border-white/10 bg-[#0F172A] text-blue-500 focus:ring-0"
+                    />
+                    <span>{vr}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* SSD capacity sizes */}
+          {(selectedCategory === 'All' || selectedCategory === 'Storage') && (
+            <div>
+              <label className="block text-xs uppercase tracking-wider text-slate-400 font-bold mb-2">Capacity</label>
+              <div className="space-y-2 text-xs">
+                {['2TB', '1TB'].map((sz) => (
+                  <label key={sz} className="flex items-center gap-2.5 text-slate-350 hover:text-white cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedCapacities.includes(sz)}
+                      onChange={() => handleCapacityChange(sz)}
+                      className="rounded border-white/10 bg-[#0F172A] text-blue-500 focus:ring-0"
+                    />
+                    <span>{sz}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* RGB Option */}
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-slate-400 font-bold mb-2">RGB Support</label>
+            <div className="flex bg-[#0F172A] rounded-xl p-1 border border-white/10 text-xs">
+              {['All', 'Yes', 'No'].map((rgb) => (
+                <button
+                  key={rgb}
+                  onClick={() => setRgbSupport(rgb)}
+                  className={`flex-1 py-1.5 rounded-lg text-center font-semibold cursor-pointer transition-all ${
+                    rgbSupport === rgb ? 'bg-blue-500 text-white' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {rgb}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Stock */}
+          <div className="pt-2">
+            <label className="flex items-center gap-2.5 text-slate-350 hover:text-white cursor-pointer text-xs">
+              <input
+                type="checkbox"
+                checked={inStockOnly}
+                onChange={() => setInStockOnly(!inStockOnly)}
+                className="rounded border-white/10 bg-[#0F172A] text-blue-500 focus:ring-0"
+              />
+              <span>In Stock Only</span>
+            </label>
+          </div>
+
+          {/* Star rating */}
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-slate-400 font-bold mb-2">Minimum Rating</label>
+            <div className="flex gap-1">
+              {[1, 2, 3, 4].map((star) => (
+                <button
+                  key={star}
+                  onClick={() => setMinRating(minRating === star ? 0 : star)}
+                  className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                    minRating >= star
+                      ? 'bg-yellow-500/10 border-yellow-500 text-yellow-500'
+                      : 'border-white/10 text-slate-500 hover:text-white'
+                  }`}
+                >
+                  ★
+                </button>
+              ))}
+            </div>
+          </div>
+        </aside>
+
+        {/* Main Grid Area */}
+        <main className="lg:col-span-3 flex flex-col gap-6">
+          {/* Top toolbar */}
+          <div className="glass-panel rounded-2xl p-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            {/* Query search input */}
+            <div className="relative w-full md:w-80">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search matching components..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-[#0F172A] border border-white/10 text-xs rounded-xl pl-9 pr-4 py-2 text-white focus:outline-none focus:border-blue-500 transition-colors"
+              />
+            </div>
+
+            {/* Sorting/Toggle View */}
+            <div className="flex items-center justify-between w-full md:w-auto gap-6">
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <span>Sort by:</span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="bg-transparent border-none text-blue-400 font-bold cursor-pointer text-xs focus:ring-0"
+                >
+                  <option value="featured" className="bg-[#0F172A]">Popularity</option>
+                  <option value="price-asc" className="bg-[#0F172A]">Price: Low to High</option>
+                  <option value="price-desc" className="bg-[#0F172A]">Price: High to Low</option>
+                  <option value="rating" className="bg-[#0F172A]">User Rating</option>
+                </select>
+              </div>
+
+              <div className="h-4 w-px bg-white/10"></div>
+
+              {/* Grid/List switch */}
+              <div className="flex gap-1.5 bg-[#0F172A] border border-white/10 p-1 rounded-xl">
+                <button
+                  onClick={() => setIsGridView(true)}
+                  className={`p-1.5 rounded-lg cursor-pointer transition-colors ${
+                    isGridView ? 'bg-blue-500 text-white' : 'text-slate-450 hover:text-white'
+                  }`}
+                >
+                  <Grid className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setIsGridView(false)}
+                  className={`p-1.5 rounded-lg cursor-pointer transition-colors ${
+                    !isGridView ? 'bg-blue-500 text-white' : 'text-slate-450 hover:text-white'
+                  }`}
+                >
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Product Items Canvas */}
+          {filteredProducts.length === 0 ? (
+            <div className="glass-panel rounded-3xl py-24 px-6 text-center">
+              <p className="text-slate-400 text-sm">No components found matching current filters.</p>
               <button
-                onClick={handleClearAllFilters}
-                className="mt-6 bg-black text-white text-xs font-bold tracking-widest uppercase py-3 px-6 hover:bg-slate-800 rounded transition-colors cursor-pointer flex items-center gap-2"
+                onClick={clearAllFilters}
+                className="mt-4 bg-blue-500 text-white font-bold text-xs uppercase px-6 py-2.5 rounded-xl hover:bg-blue-600 transition-colors cursor-pointer"
               >
-                <RotateCcw className="w-3.5 h-3.5" />
-                Reset All Filters
+                Clear All Filters
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 animate-in fade-in duration-300">
-              {filteredProducts.map((p) => (
-                <div key={p.id} className="h-full">
-                  <ProductCard product={p} />
-                </div>
-              ))}
+            <div
+              className={
+                isGridView
+                  ? 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6'
+                  : 'flex flex-col gap-4'
+              }
+            >
+              {filteredProducts.map((product) => {
+                const isCompared = comparedIds.includes(product.id);
+
+                return (
+                  <div
+                    key={product.id}
+                    className={`glass-panel overflow-hidden transition-all duration-300 hover:border-blue-500/40 flex ${
+                      isGridView ? 'flex-col p-5 rounded-2xl relative' : 'p-4 rounded-xl items-center gap-4 relative'
+                    }`}
+                  >
+                    {/* Brand Badge */}
+                    <div className="absolute top-4 right-4 bg-[#0F172A]/80 border border-white/10 px-2.5 py-0.5 rounded-full text-[9px] font-bold text-blue-400 tracking-wider">
+                      {product.badge || 'PRO'}
+                    </div>
+
+                    {/* Image Area */}
+                    <div
+                      className={`bg-[#0F172A] rounded-xl flex items-center justify-center p-4 border border-white/5 ${
+                        isGridView ? 'h-44 w-full mb-4' : 'h-20 w-20 flex-shrink-0'
+                      }`}
+                    >
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        className="max-h-full max-w-full object-contain"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+
+                    {/* Meta descriptions */}
+                    <div className="text-left flex-1 flex flex-col justify-between">
+                      <div>
+                        {/* Title and category */}
+                        <div className="flex justify-between items-start gap-2">
+                          <div>
+                            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-mono">
+                              {product.category}
+                            </span>
+                            <h3 className="font-bold text-sm text-white hover:text-blue-400 transition-colors line-clamp-1 mt-0.5">
+                              <Link to={`/product/${product.id}`}>{product.name}</Link>
+                            </h3>
+                          </div>
+                        </div>
+
+                        {/* Ratings */}
+                        <div className="flex items-center gap-1.5 mt-1.5 text-xs text-slate-400">
+                          <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />
+                          <span className="font-bold text-slate-200">{product.rating}</span>
+                          <span>({product.reviews})</span>
+                        </div>
+
+                        {/* Specifications */}
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          {Object.entries(product.specs || {}).slice(0, 3).map(([key, val]) => (
+                            <span
+                              key={key}
+                              className="text-[9px] bg-[#0F172A] border border-white/5 text-slate-400 px-2 py-0.5 rounded-md font-mono"
+                              title={`${key}: ${val}`}
+                            >
+                              {val}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Pricing/Action strip */}
+                      <div
+                        className={`pt-4 mt-5 border-t border-white/5 flex items-center justify-between ${
+                          isGridView ? '' : 'w-full'
+                        }`}
+                      >
+                        <div className="flex flex-col text-left">
+                          <span className="text-base font-black text-white">${product.price.toFixed(2)}</span>
+                          <span
+                            className={`text-[9px] font-bold uppercase ${
+                              product.stock > 0 ? 'text-green-400' : 'text-red-400'
+                            }`}
+                          >
+                            {product.stock > 0 ? `In Stock (${product.stock})` : 'Out of Stock'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {/* Compare Box */}
+                          <label className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-white/10 hover:bg-white/5 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={isCompared}
+                              onChange={() => toggleCompare(product.id)}
+                              className="rounded border-white/15 bg-transparent text-blue-500 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5"
+                            />
+                            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Compare</span>
+                          </label>
+
+                          {/* Builder Action */}
+                          {builderSelectCategory ? (
+                            <button
+                              onClick={() => handleAddToBuilder(product)}
+                              className="bg-purple-500 hover:bg-purple-600 text-white font-bold text-[10px] uppercase px-3.5 py-2 rounded-lg transition-all shadow-sm hover:shadow-[0_0_12px_rgba(139,92,246,0.4)] cursor-pointer"
+                            >
+                              Select
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => quickAdd(product)}
+                              className="bg-blue-500 hover:bg-blue-600 text-white font-bold text-[10px] uppercase px-3.5 py-2 rounded-lg transition-all hover:shadow-[0_0_12px_rgba(59,130,246,0.4)] active:scale-95 cursor-pointer"
+                            >
+                              Add
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
-        </div>
+        </main>
       </div>
     </div>
   );

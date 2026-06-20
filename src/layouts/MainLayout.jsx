@@ -6,12 +6,12 @@ import ChatAssistant from '../components/ChatAssistant';
 
 export default function MainLayout() {
   return (
-    <div className="relative min-h-screen bg-[#f8f9ff] text-[#0b1c30] flex flex-col pt-24 font-sans select-none antialiased">
+    <div className="relative min-h-screen bg-[#0F172A] text-[#F8FAFC] flex flex-col pt-16 font-sans select-none antialiased">
       {/* Universal navigation top header glass overlay */}
       <Navbar />
 
       {/* Main interactive application content container */}
-      <main className="flex-grow w-full max-w-[1280px] mx-auto px-1 md:px-0">
+      <main className="flex-grow w-full">
         <Outlet />
       </main>
 

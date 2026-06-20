@@ -1,378 +1,585 @@
-import { useRef, useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import ProductCard from '../components/ProductCard';
-import { ArrowRight, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useCart } from '../context/CartContext';
+import { PRODUCTS, COMMUNITY_BUILDS } from '../data/hardwareData';
+import { ArrowRight, Cpu, Layers, Wrench, Shield, Zap, Sparkles, Star, ShoppingCart, Eye, Heart, Users } from 'lucide-react';
 
-export default function Home() {
-  const carouselRef = useRef(null);
-
-  // Dynamic products states loaded from backend API
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+function WebGLHeroBackground() {
+  const canvasRef = useRef(null);
 
   useEffect(() => {
-    const fetchHomeProducts = async () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    let width = canvas.clientWidth;
+    let height = canvas.clientHeight;
+    canvas.width = width;
+    canvas.height = height;
+
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    if (!gl) return;
+
+    const vs = `
+      attribute vec2 a_position;
+      varying vec2 v_texCoord;
+      void main() {
+        v_texCoord = a_position * 0.5 + 0.5;
+        gl_Position = vec4(a_position, 0.0, 1.0);
+      }
+    `;
+
+    const fs = `
+      precision highp float;
+      varying vec2 v_texCoord;
+      uniform float u_time;
+      uniform vec2 u_resolution;
+
+      void main() {
+        vec2 uv = v_texCoord;
+        float color = 0.0;
+        
+        // Dynamic wave patterns
+        color += sin(uv.x * 8.0 + u_time * 0.5) * 0.08;
+        color += sin(uv.y * 12.0 - u_time * 0.4) * 0.08;
+        
+        vec3 background = vec3(0.059, 0.090, 0.165); // #0F172A
+        vec3 accent = vec3(0.231, 0.510, 0.965);    // #3B82F6 (Electric Blue)
+        vec3 purple = vec3(0.545, 0.361, 0.965);    // #8B5CF6 (Purple)
+        
+        float mask = smoothstep(0.35, 0.65, uv.y + color);
+        vec3 finalColor = mix(background, mix(accent, purple, uv.x), mask * 0.25);
+        
+        gl_FragColor = vec4(finalColor, 1.0);
+      }
+    `;
+
+    function compileShader(type, source) {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, source);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+        console.error(gl.getShaderInfoLog(s));
+        gl.deleteShader(s);
+        return null;
+      }
+      return s;
+    }
+
+    const vertexShader = compileShader(gl.VERTEX_SHADER, vs);
+    const fragmentShader = compileShader(gl.FRAGMENT_SHADER, fs);
+    if (!vertexShader || !fragmentShader) return;
+
+    const program = gl.createProgram();
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      console.error(gl.getProgramInfoLog(program));
+      return;
+    }
+    gl.useProgram(program);
+
+    const positionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+      -1, -1,
+       1, -1,
+      -1,  1,
+      -1,  1,
+       1, -1,
+       1,  1,
+    ]), gl.STATIC_DRAW);
+
+    const positionLoc = gl.getAttribLocation(program, 'a_position');
+    gl.enableVertexAttribArray(positionLoc);
+    gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
+
+    const uTime = gl.getUniformLocation(program, 'u_time');
+    const uResolution = gl.getUniformLocation(program, 'u_resolution');
+
+    let animId;
+    function render(time) {
+      if (!canvas) return;
+      
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+      }
+      
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.uniform1f(uTime, time * 0.001);
+      gl.uniform2f(uResolution, canvas.width, canvas.height);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      animId = requestAnimationFrame(render);
+    }
+    animId = requestAnimationFrame(render);
+
+    return () => {
+      cancelAnimationFrame(animId);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />;
+}
+
+export default function Home() {
+  const navigate = useNavigate();
+  const { quickAdd } = useCart();
+  const trendingCarouselRef = useRef(null);
+  const [products, setProducts] = useState(PRODUCTS);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
       try {
-        setLoading(true);
         const res = await fetch('/api/products');
         const data = await res.json();
-        if (data.success) {
+        if (data.success && data.products && data.products.length > 0) {
           setProducts(data.products);
         }
       } catch (err) {
-        console.error('Error fetching homepage products:', err);
-      } finally {
-        setLoading(false);
+        console.warn('Backend offline or error fetching products, using local fallback.');
       }
     };
-    fetchHomeProducts();
+    fetchProducts();
   }, []);
 
+  // Extract categoric counts
+  const categoriesList = [
+    { name: 'CPUs', label: 'Processors', icon: Cpu, count: '48 Parts', url: '/products?category=CPUs' },
+    { name: 'GPUs', label: 'Graphics Cards', icon: Layers, count: '36 Parts', url: '/products?category=GPUs' },
+    { name: 'Motherboards', label: 'Motherboards', icon: Wrench, count: '42 Parts', url: '/products?category=Motherboards' },
+    { name: 'RAM', label: 'Memory', icon: Zap, count: '54 Parts', url: '/products?category=RAM' },
+    { name: 'Storage', label: 'Storage', icon: Sparkles, count: '32 Parts', url: '/products?category=Storage' },
+  ];
+
+  // Filtering hardware
+  const trendingHardware = products.filter(p => p.isTrending || p.isFeatured);
+
   const scrollCarousel = (direction) => {
-    if (carouselRef.current) {
+    if (trendingCarouselRef.current) {
       const scrollAmt = 340;
-      carouselRef.current.scrollBy({
+      trendingCarouselRef.current.scrollBy({
         left: direction === 'left' ? -scrollAmt : scrollAmt,
         behavior: 'smooth'
       });
     }
   };
 
-  const trendingProducts = products.filter(
-    (p) => p.isTrending || p.badge === 'SMART' || p.badge === 'BESTSELLER'
-  );
-  
-  // Featured smart lighting and appliances
-  const featuredTech = products.filter(
-    (p) => p.category === 'Smart Home' || p.category === 'Lighting'
-  ).slice(0, 3);
-
   return (
-    <div className="space-y-16 pb-12 font-sans">
-      {/* 1. HERO BANNER SECTION */}
-      <section className="relative h-[80vh] bg-slate-900 text-white flex items-center overflow-hidden rounded-2xl mx-4 md:mx-0 shadow-lg">
-        {/* Absolute Background image */}
-        <div className="absolute inset-0 z-0">
-          <img
-            src="https://images.unsplash.com/photo-1558002038-1055907df827?q=80&w=2070&auto=format&fit=crop"
-            alt="Lumina Smart Home Collection background"
-            className="w-full h-full object-cover opacity-45 mix-blend-overlay scale-105 duration-700 hover:scale-100 transition-transform"
-          />
-        </div>
+    <div className="space-y-24 pb-16 font-sans">
+      {/* SECTION 1 - HERO */}
+      <section className="relative min-h-[85vh] flex items-center overflow-hidden bg-[#0F172A] border-b border-white/5 py-12">
+        {/* WebGL gradient rendering */}
+        <WebGLHeroBackground />
+        
+        {/* Ambient neon radial gradients */}
+        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[120px] pointer-events-none"></div>
 
-        {/* Hero Copy overlay */}
-        <div className="relative z-10 max-w-[1280px] mx-auto w-full px-8 md:px-12 flex flex-col items-start gap-4">
-          <span className="text-xs uppercase tracking-[0.3em] font-bold text-slate-350 flex items-center gap-1.5">
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            LUMINA SMART INTERIOR MATRIX
-          </span>
-          
-          <h1 className="font-sans font-extrabold text-4xl sm:text-5xl lg:text-6xl tracking-tight text-white max-w-2xl leading-tight">
-            Quiet smart luxury, modern interior lines.
-          </h1>
+        <div className="max-w-[1440px] mx-auto px-6 md:px-8 w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10">
+          {/* Copy */}
+          <div className="space-y-6 text-left">
+            <div className="inline-flex items-center gap-2 bg-blue-500/10 text-blue-400 px-4 py-1.5 rounded-full text-xs font-bold border border-blue-500/20 uppercase tracking-widest">
+              <Sparkles className="w-3.5 h-3.5" />
+              Intelligence Driven Builder
+            </div>
+            
+            <h1 className="font-sans font-black text-5xl sm:text-6xl tracking-tight leading-[1.08] text-white">
+              Build Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">Dream Gaming PC</span>
+            </h1>
 
-          <p className="text-sm sm:text-base text-slate-300 max-w-lg leading-relaxed mt-2">
-            A harmonious integration of automated lights, organic ceramic materials, and minimalist shapes. Craft a workspace or sanctuary aligned with tranquility.
-          </p>
+            <p className="text-slate-400 text-base sm:text-lg max-w-lg leading-relaxed">
+              Find high-performance components, verify hardware compatibility, estimate FPS performance, and save your perfect custom setup.
+            </p>
 
-          <div className="flex flex-wrap gap-4 mt-6">
-            <Link
-              to="/products"
-              className="bg-white hover:bg-slate-100 text-[#0b1c30] font-bold tracking-widest text-xs uppercase px-8 py-3.5 rounded shadow-lg transition-transform hover:-translate-y-0.5 cursor-pointer text-center"
-            >
-              Explore Shop
-            </Link>
-            <Link
-              to="/collections"
-              className="border border-white/60 hover:bg-white/10 text-white font-bold tracking-widest text-xs uppercase px-8 py-3.5 rounded transition-transform hover:-translate-y-0.5 cursor-pointer text-center"
-            >
-              Curated Portfolios
-            </Link>
+            <div className="flex flex-wrap gap-4 pt-4">
+              <Link
+                to="/builder"
+                className="bg-blue-500 hover:bg-blue-600 text-white font-bold tracking-wider text-xs uppercase px-8 py-4 rounded-xl shadow-[0_4px_20px_rgba(59,130,246,0.3)] hover:shadow-[0_4px_25px_rgba(59,130,246,0.5)] active:scale-95 transition-all flex items-center gap-2"
+              >
+                Start Building <Wrench className="w-4 h-4" />
+              </Link>
+              <Link
+                to="/products"
+                className="border border-[#334155] hover:bg-white/5 text-white font-bold tracking-wider text-xs uppercase px-8 py-4 rounded-xl transition-all active:scale-95"
+              >
+                Browse Components
+              </Link>
+            </div>
           </div>
-        </div>
 
-        {/* Bottom subtle layout marker */}
-        <div className="absolute bottom-6 left-8 right-8 flex justify-between items-center text-[10px] tracking-widest text-white/50 uppercase z-10">
-          <span>CURATED SERIES 05 / EDITION 02</span>
-          <span>SMART INTERIOR ARCHITECTURE</span>
+          {/* Graphical Rig Render & Floating Cards */}
+          <div className="relative hidden lg:block h-[500px]">
+            {/* Case Illustration Image */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <img
+                src="https://images.unsplash.com/photo-1587202372775-e229f172b9d7?q=80&w=800&auto=format&fit=crop"
+                alt="Enthusiast Gaming PC Case Setup"
+                className="w-[85%] h-[85%] object-cover rounded-3xl border border-white/10 floating shadow-2xl"
+              />
+            </div>
+
+            {/* GPU Card floating */}
+            <div className="absolute top-10 right-4 glass-panel p-4 rounded-2xl floating shadow-lg" style={{ animationDelay: '0.5s' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-500/20 text-blue-400 rounded-xl flex items-center justify-center">
+                  <Layers className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-white font-sans">RTX 4090 OC</p>
+                  <p className="text-[10px] text-green-400 font-bold uppercase tracking-wider">In Stock</p>
+                </div>
+              </div>
+            </div>
+
+            {/* CPU Card floating */}
+            <div className="absolute bottom-16 left-4 glass-panel p-4 rounded-2xl floating shadow-lg" style={{ animationDelay: '1.2s' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-purple-500/20 text-purple-400 rounded-xl flex items-center justify-center">
+                  <Cpu className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-white font-sans">Ryzen 7 7800X3D</p>
+                  <p className="text-[10px] text-purple-400 font-bold">120W TDP</p>
+                </div>
+              </div>
+            </div>
+
+            {/* RAM floating badge */}
+            <div className="absolute top-1/2 -left-6 glass-panel py-2 px-4 rounded-full floating shadow-md" style={{ animationDelay: '2s' }}>
+              <span className="text-[10px] font-bold text-white tracking-widest uppercase">64GB DDR5 7200</span>
+            </div>
+
+            {/* SSD floating badge */}
+            <div className="absolute bottom-10 right-10 glass-panel py-2.5 px-4 rounded-xl floating shadow-md" style={{ animationDelay: '2.8s' }}>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                <span className="text-[10px] font-mono font-bold text-slate-350">7450 MB/s NVMe</span>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* 2. CHOOSE BY DYNAMIC ROOM TYPE */}
-      <section className="max-w-[1280px] mx-auto px-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-8">
-          <div>
-            <span className="text-xs uppercase tracking-widest text-slate-400 font-bold">Room-Based Shopping</span>
-            <h2 className="text-xl sm:text-2xl font-extrabold text-[#0b1c30] mt-1">Shop By Curated Rooms</h2>
-          </div>
-          <Link
-            to="/products"
-            className="text-xs font-bold uppercase tracking-widest text-slate-800 border-b border-slate-800/60 pb-0.5 hover:opacity-80 transition-all flex items-center gap-1 cursor-pointer"
-          >
-            See all room setups <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
+      {/* SECTION 2 - FEATURED CATEGORIES */}
+      <section className="max-w-[1440px] mx-auto px-6 md:px-8">
+        <div className="mb-10 text-left">
+          <h2 className="text-3xl font-extrabold text-white tracking-tight">Premium Categories</h2>
+          <p className="text-slate-400 mt-2 text-sm">Discover hardware designed for extreme rendering and high-refresh gaming.</p>
         </div>
 
-        {/* 3 Interactive Grid blocks */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* GAMING SETUP CARD */}
-          <Link
-            to="/products?room=Gaming Setup"
-            className="group relative h-[380px] bg-slate-100 rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer block"
-          >
-            <img
-              src="https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=600&auto=format&fit=crop"
-              alt="Premium Gaming Setup"
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent flex flex-col justify-end p-6 text-white">
-              <span className="text-[10px] uppercase tracking-wider text-slate-300 font-bold mb-1">Gaming Setup</span>
-              <h3 className="text-lg font-bold">Monolithic Gaming Room</h3>
-              <p className="text-xs text-slate-300 mt-1 line-clamp-2 max-w-xs opacity-90">
-                Responsive smart acoustics, full-spectrum LED bars, and matte-black desktop grids.
-              </p>
-            </div>
-          </Link>
-
-          {/* STUDY ROOM CARD */}
-          <Link
-            to="/products?room=Study Room"
-            className="group relative h-[380px] bg-slate-100 rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer block"
-          >
-            <img
-              src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=600&auto=format&fit=crop"
-              alt="Study & Office Room"
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent flex flex-col justify-end p-6 text-white">
-              <span className="text-[10px] uppercase tracking-wider text-slate-300 font-bold mb-1">Study Room</span>
-              <h3 className="text-lg font-bold">Focal Workspace Setup</h3>
-              <p className="text-xs text-slate-300 mt-1 line-clamp-2 max-w-xs opacity-90">
-                Oak electric standing desks, air purifiers, high-CRI bulbs, and historical gothic wood shelves.
-              </p>
-            </div>
-          </Link>
-
-          {/* BALCONY & BEDROOM CARD */}
-          <Link
-            to="/products?room=Balcony"
-            className="group relative h-[380px] bg-slate-100 rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer block"
-          >
-            <img
-              src="https://images.unsplash.com/photo-1538688525198-9b88f6f53126?q=80&w=600&auto=format&fit=crop"
-              alt="Balcony & Living Room"
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent flex flex-col justify-end p-6 text-white">
-              <span className="text-[10px] uppercase tracking-wider text-slate-300 font-bold mb-1">Balcony &amp; Zen</span>
-              <h3 className="text-lg font-bold">Wabi-Sabi Sanctuary</h3>
-              <p className="text-xs text-slate-300 mt-1 line-clamp-2 max-w-xs opacity-90">
-                Preserved moss art pieces, sand rake sandscapes, aroma mist diffusers, and coarse clay vases.
-              </p>
-            </div>
-          </Link>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+          {categoriesList.map((cat, idx) => {
+            const IconComp = cat.icon;
+            return (
+              <Link
+                key={idx}
+                to={cat.url}
+                className="group glass-panel p-6 rounded-2xl flex flex-col items-center text-center hover:bg-blue-500/5 hover:border-blue-500/30 transition-all duration-300 shadow-md"
+              >
+                <div className="w-14 h-14 bg-[#0F172A] border border-white/5 text-blue-400 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                  <IconComp className="w-6 h-6" />
+                </div>
+                <span className="font-bold text-sm text-white group-hover:text-blue-400 transition-colors">{cat.label}</span>
+                <span className="text-xs text-slate-400 mt-1 font-mono">{cat.count}</span>
+              </Link>
+            );
+          })}
         </div>
       </section>
 
-      {/* 3. TRENDING SLIDER CAROUSEL */}
-      <section className="bg-slate-50 border-y border-slate-200/50 py-16">
-        <div className="max-w-[1280px] mx-auto px-6">
-          <div className="flex justify-between items-end mb-8">
-            <div>
-              <span className="text-xs uppercase tracking-widest text-slate-400 font-bold">Trending Now</span>
-              <h2 className="text-xl sm:text-2xl font-extrabold text-[#0b1c30] mt-1">Sought-after Pieces</h2>
+      {/* SECTION 3 - TRENDING PRODUCTS */}
+      <section className="bg-[#111827] py-16 border-y border-white/5 overflow-hidden relative">
+        <div className="max-w-[1440px] mx-auto px-6 md:px-8">
+          <div className="flex justify-between items-end mb-10">
+            <div className="text-left">
+              <h2 className="text-3xl font-extrabold text-white tracking-tight">Trending Hardware</h2>
+              <p className="text-slate-400 mt-2 text-sm">Most popular items in build templates right now.</p>
             </div>
-
-            {/* Carousel navigation triggers */}
+            
+            {/* Scroll Buttons */}
             <div className="flex gap-2">
               <button
                 onClick={() => scrollCarousel('left')}
-                className="w-10 h-10 border border-slate-200 hover:bg-white text-[#0b1c30] flex items-center justify-center rounded-full transition-all cursor-pointer shadow-xs bg-white/50"
-                aria-label="Scroll left"
+                className="p-2 border border-[#334155] rounded-xl hover:bg-white/5 text-white transition-all cursor-pointer"
               >
-                <ChevronLeft className="w-5 h-5 text-slate-700" />
+                ←
               </button>
               <button
                 onClick={() => scrollCarousel('right')}
-                className="w-10 h-10 border border-slate-200 hover:bg-white text-[#0b1c30] flex items-center justify-center rounded-full transition-all cursor-pointer shadow-xs bg-white/50"
-                aria-label="Scroll right"
+                className="p-2 border border-[#334155] rounded-xl hover:bg-white/5 text-white transition-all cursor-pointer"
               >
-                <ChevronRight className="w-5 h-5 text-slate-700" />
+                →
               </button>
             </div>
           </div>
 
-          {/* Actual swiper row */}
-          {loading ? (
-            <div className="flex gap-6 overflow-x-auto pb-4 no-scrollbar">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="w-[280px] sm:w-[310px] aspect-[3/4] flex-shrink-0 bg-white border border-slate-100 rounded-lg animate-pulse"></div>
-              ))}
-            </div>
-          ) : (
-            <div
-              ref={carouselRef}
-              className="flex gap-6 overflow-x-auto pb-4 scroll-smooth snap-x snap-mandatory no-scrollbar"
-            >
-              {trendingProducts.map((product) => (
-                <div key={product.id} className="w-[280px] sm:w-[310px] flex-shrink-0 snap-start">
-                  <ProductCard product={product} />
+          <div
+            ref={trendingCarouselRef}
+            className="flex gap-6 overflow-x-auto pb-6 snap-x snap-mandatory no-scrollbar scroll-smooth"
+          >
+            {trendingHardware.map((product) => (
+              <div
+                key={product.id}
+                className="min-w-[290px] md:min-w-[320px] snap-start glass-panel rounded-2xl p-5 flex flex-col hover:border-blue-500/30 transition-all duration-300 relative group"
+              >
+                {/* Brand Badge */}
+                <div className="absolute top-4 right-4 bg-[#0F172A] border border-white/10 px-2.5 py-0.5 rounded-full text-[9px] font-bold text-blue-400 tracking-wider">
+                  {product.badge || 'PREMIUM'}
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
 
-      {/* 4. THE SMART HOME ACCENTS EXHIBITION */}
-      <section className="max-w-[1280px] mx-auto px-6">
-        <div className="bg-white rounded-xl border border-slate-200/50 p-6 md:p-12 shadow-xs grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-          <div className="space-y-6">
-            <span className="text-xs uppercase tracking-widest text-[#0b1c30] font-bold py-1 px-3 bg-[#FAF9F5] border border-slate-200/40 rounded-full">
-              Automated Ambient Curation
-            </span>
-            
-            <h2 className="font-sans font-extrabold text-3xl sm:text-4xl tracking-tight text-[#0b1c30] leading-tight">
-              Design Aesthetics: The Modern Smart Home
-            </h2>
+                {/* Image */}
+                <div className="h-44 w-full bg-[#0F172A] rounded-xl p-4 flex items-center justify-center overflow-hidden mb-4 border border-white/5">
+                  <img
+                    src={product.imageUrl}
+                    alt={product.name}
+                    className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-500"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
 
-            <p className="text-sm text-slate-500 leading-relaxed">
-              Explore dynamic forms where automation serves tranquility. Featuring smart PM2.5 monitoring air purifiers, 360 acoustic smart speakers, and high-CRI ambient lights scheduled to match your wakeful circadian rhythms.
-            </p>
+                {/* Copy */}
+                <div className="text-left flex-1 flex flex-col">
+                  <h3 className="font-bold text-sm text-white group-hover:text-blue-400 transition-colors line-clamp-1">
+                    <Link to={`/product/${product.id}`}>{product.name}</Link>
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">
+                    {product.brand} | {Object.entries(product.specs || {}).slice(0, 2).map(([k, v]) => `${k}: ${v}`).join(', ')}
+                  </p>
+                  
+                  <div className="flex items-center gap-1.5 mt-2">
+                    <Star className="w-3.5 h-3.5 fill-yellow-500 text-yellow-500" />
+                    <span className="text-xs font-bold text-slate-200">{product.rating}</span>
+                    <span className="text-[10px] text-slate-500">({product.reviews} reviews)</span>
+                  </div>
 
-            <div className="grid grid-cols-3 gap-4 py-4 border-y border-slate-100 text-[#0b1c30]">
-              <div>
-                <span className="block font-bold text-lg">6</span>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Rooms Covered</span>
+                  {/* Pricing/Action */}
+                  <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
+                    <span className="text-lg font-black text-white">${product.price.toFixed(2)}</span>
+                    <button
+                      onClick={() => quickAdd(product)}
+                      className="bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white p-2.5 rounded-xl transition-all cursor-pointer hover:shadow-[0_0_10px_rgba(59,130,246,0.3)]"
+                    >
+                      <ShoppingCart className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div>
-                <span className="block font-bold text-lg">9</span>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Aesthetic Themes</span>
-              </div>
-              <div>
-                <span className="block font-bold text-lg">100%</span>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Connected Guarantee</span>
-              </div>
-            </div>
-
-            <Link
-              to="/products?category=Smart Home"
-              className="bg-black hover:bg-slate-800 text-white text-xs font-bold tracking-widest uppercase py-3.5 px-8 rounded shadow-sm transition-all cursor-pointer inline-block text-center"
-            >
-              Browse Smart Home Tech
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-4">
-              <div className="h-[210px] bg-slate-50 rounded-lg overflow-hidden border border-slate-100">
-                <img
-                  src={featuredTech[0]?.imageUrl}
-                  alt="Feature 1"
-                  className="w-full h-full object-cover float-none"
-                  referrerPolicy="no-referrer"
-                />
-              </div>
-              <div className="h-[140px] bg-slate-50 rounded-lg overflow-hidden border border-slate-100">
-                <img
-                  src={featuredTech[1]?.imageUrl}
-                  alt="Feature 2"
-                  className="w-full h-full object-cover float-none"
-                  referrerPolicy="no-referrer"
-                />
-              </div>
-            </div>
-            <div className="pt-8 space-y-4">
-              <div className="h-[140px] bg-slate-50 rounded-lg overflow-hidden border border-slate-100">
-                <img
-                  src="https://images.unsplash.com/photo-1558002038-1055907df827?q=80&w=600&auto=format&fit=crop"
-                  alt="Curated details"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="h-[210px] bg-slate-50 rounded-lg overflow-hidden border border-slate-100">
-                <img
-                  src={featuredTech[2]?.imageUrl}
-                  alt="Feature 3"
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* 5. THE LUMINA JOURNAL: EDITORIALS */}
-      <section className="max-w-[1280px] mx-auto px-6 border-t border-slate-200/50 pt-16">
-        <div className="text-center max-w-lg mx-auto mb-12">
-          <span className="text-xs uppercase tracking-widest text-slate-400 font-bold">Lumina Journal</span>
-          <h2 className="text-2xl font-extrabold text-[#0b1c30] mt-1">Aesthetic Editorial Stories</h2>
-          <p className="text-slate-500 text-xs mt-2 leading-relaxed">
-            Delving deeper into smart home connectivity setups, minimalist wabi-sabi room styling, and natural sustainable interior design philosophy.
+      {/* SECTION 4 - BUILD A PC CTA */}
+      <section className="max-w-[1440px] mx-auto px-6 md:px-8">
+        <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-[32px] border border-white/5 p-8 md:p-14 relative overflow-hidden shadow-2xl">
+          {/* Neon light behind banner */}
+          <div className="absolute right-0 top-0 w-96 h-96 bg-blue-500/10 rounded-full blur-[100px] pointer-events-none"></div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10">
+            {/* Details */}
+            <div className="text-left space-y-6">
+              <h2 className="text-4xl font-extrabold text-white tracking-tight leading-tight">
+                Master the <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">Art of PC Building</span>
+              </h2>
+              <p className="text-slate-400 text-sm md:text-base leading-relaxed">
+                Configure your gaming platform utilizing our intelligent builder. Add parts, calculate raw power drawing, verify dimensions, and estimate dynamic FPS metrics instantly.
+              </p>
+              
+              <div className="space-y-3 pt-2 text-sm text-slate-350">
+                <div className="flex items-center gap-3">
+                  <span className="w-5 h-5 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center text-xs">✓</span>
+                  <span>Interactive Real-time Compatibility Validator</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="w-5 h-5 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center text-xs">✓</span>
+                  <span>Automated Power Draw overhead warnings</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="w-5 h-5 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center text-xs">✓</span>
+                  <span>Resolution FPS Estimator (1080p, 1440p, 4K)</span>
+                </div>
+              </div>
+
+              <div className="pt-4">
+                <Link
+                  to="/builder"
+                  className="inline-flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-bold tracking-wider text-xs uppercase px-8 py-4 rounded-xl shadow-[0_4px_15px_rgba(59,130,246,0.3)] transition-all cursor-pointer"
+                >
+                  Launch PC Builder
+                </Link>
+              </div>
+            </div>
+
+            {/* Visual build block mockup */}
+            <div className="bg-[#0F172A] border border-white/10 rounded-2xl p-6 text-left shadow-xl max-w-md mx-auto w-full font-sans">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="font-bold text-white text-base">Your Build Preview</h3>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono mt-0.5">Configuration slot #1</p>
+                </div>
+                <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full font-bold">92% Complete</span>
+              </div>
+
+              <div className="space-y-3 font-sans text-xs">
+                <div className="flex items-center gap-3 p-3 bg-[#1E293B] border-l-4 border-blue-500 rounded-r-lg">
+                  <Cpu className="w-4 h-4 text-blue-400" />
+                  <div className="flex-1">
+                    <p className="font-semibold text-white">Intel Core i9-14900K</p>
+                    <p className="text-[10px] text-slate-400">Processor</p>
+                  </div>
+                  <span className="font-bold text-slate-350">$589.00</span>
+                </div>
+                
+                <div className="flex items-center gap-3 p-3 bg-[#1E293B] border-l-4 border-blue-500 rounded-r-lg">
+                  <Layers className="w-4 h-4 text-blue-400" />
+                  <div className="flex-1">
+                    <p className="font-semibold text-white">ROG Strix RTX 4090 OC</p>
+                    <p className="text-[10px] text-slate-400">Graphics Card</p>
+                  </div>
+                  <span className="font-bold text-slate-350">$1999.00</span>
+                </div>
+
+                <div className="flex items-center gap-3 p-3 bg-orange-500/10 border border-orange-500/30 border-l-4 border-orange-500 rounded-r-lg text-orange-400">
+                  <span className="text-xs font-bold text-orange-400 font-sans">!</span>
+                  <div className="flex-1">
+                    <p className="font-semibold text-white">Power Supply Required</p>
+                    <p className="text-[10px] text-slate-400">Estimated load draws ~642 Watts</p>
+                  </div>
+                  <Link to="/products?category=Power Supplies" className="underline font-bold text-[10px] hover:text-orange-300">Select</Link>
+                </div>
+              </div>
+
+              <div className="mt-6 pt-5 border-t border-white/5 flex justify-between items-center">
+                <div>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider font-mono">Estimated Price</p>
+                  <p className="text-2xl font-black text-white">$2,588.00</p>
+                </div>
+                <span className="text-[10px] font-mono text-green-400 flex items-center gap-1">
+                  ✓ Core Components Compatible
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 5 - WHY CHOOSE BUILDFORGE */}
+      <section className="max-w-[1440px] mx-auto px-6 md:px-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="glass-panel p-6 rounded-2xl text-left space-y-3">
+          <div className="w-10 h-10 bg-blue-500/20 text-blue-400 rounded-xl flex items-center justify-center">
+            <Shield className="w-5 h-5" />
+          </div>
+          <h3 className="font-bold text-base text-white">Compatibility Checker</h3>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Our rules engine scans sockets, PCI slots, case length constraints, and memory types to prevent build failures.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {/* ARTICLE 1 */}
-          <article className="space-y-4 group">
-            <div className="aspect-[16/10] bg-slate-200 overflow-hidden rounded-lg cursor-pointer">
-              <img
-                src="https://images.unsplash.com/photo-1558002038-1055907df827?q=80&w=600&auto=format&fit=crop"
-                alt="Story 1"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-            </div>
-            <span className="text-[10px] text-slate-450 font-bold uppercase tracking-widest block font-mono">
-              JOURNAL • ISSUE 05
-            </span>
-            <h3 className="font-bold text-base text-slate-800 group-hover:text-black cursor-pointer group-hover:underline decoration-1 underline-offset-4">
-              Circadian Lighting: Tuning Ambient Light to Wakeful Patterns
-            </h3>
-            <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">
-              How scheduling RGB smart bulbs and ambient LED paths to transition from cool white to deep warm glows can optimize hormone releases and rest quality.
-            </p>
-          </article>
+        <div className="glass-panel p-6 rounded-2xl text-left space-y-3">
+          <div className="w-10 h-10 bg-blue-500/20 text-blue-400 rounded-xl flex items-center justify-center">
+            <Sparkles className="w-5 h-5" />
+          </div>
+          <h3 className="font-bold text-base text-white">AI Recommendations</h3>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Unsure of which cooler fits your LGA 1700 processor? Ask our Forge Consultant chatbot for real-time matches.
+          </p>
+        </div>
 
-          {/* ARTICLE 2 */}
-          <article className="space-y-4 group">
-            <div className="aspect-[16/10] bg-slate-200 overflow-hidden rounded-lg cursor-pointer">
-              <img
-                src="https://images.unsplash.com/photo-1513694203232-719a280e022f?q=80&w=600&auto=format&fit=crop"
-                alt="Story 2"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-            </div>
-            <span className="text-[10px] text-slate-450 font-bold uppercase tracking-widest block font-mono">
-              INTERIORS • Curated
-            </span>
-            <h3 className="font-bold text-base text-slate-800 group-hover:text-black cursor-pointer group-hover:underline decoration-1 underline-offset-4">
-              The Architecture of the Modern Silent Desk Space
-            </h3>
-            <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">
-              Combining solid oak steam-bent standing desks, cement desk trays, and PM2.5 clean air purification filters to support quiet concentration blocks.
-            </p>
-          </article>
+        <div className="glass-panel p-6 rounded-2xl text-left space-y-3">
+          <div className="w-10 h-10 bg-blue-500/20 text-blue-400 rounded-xl flex items-center justify-center">
+            <Zap className="w-5 h-5" />
+          </div>
+          <h3 className="font-bold text-base text-white">FPS Estimator</h3>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Forecast gaming frame rates dynamically for 1080p, 1440p, and 4K settings on popular AAA titles before purchase.
+          </p>
+        </div>
 
-          {/* ARTICLE 3 */}
-          <article className="space-y-4 group">
-            <div className="aspect-[16/10] bg-slate-200 overflow-hidden rounded-lg cursor-pointer">
-              <img
-                src="https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?q=80&w=600&auto=format&fit=crop"
-                alt="Story 3"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
+        <div className="glass-panel p-6 rounded-2xl text-left space-y-3">
+          <div className="w-10 h-10 bg-blue-500/20 text-blue-400 rounded-xl flex items-center justify-center">
+            <Users className="w-5 h-5" />
+          </div>
+          <h3 className="font-bold text-base text-white">Community Builds</h3>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Examine and copy rigs created by other enthusiasts. Clone templates directly into the builder to customize.
+          </p>
+        </div>
+      </section>
+
+      {/* SECTION 6 - TOP BUILDS */}
+      <section className="max-w-[1440px] mx-auto px-6 md:px-8">
+        <div className="flex justify-between items-end mb-10">
+          <div className="text-left">
+            <h2 className="text-3xl font-extrabold text-white tracking-tight">Top Showcase Builds</h2>
+            <p className="text-slate-400 mt-2 text-sm">Highly rated rigs styled by the community.</p>
+          </div>
+          <Link
+            to="/community"
+            className="text-xs font-bold text-blue-400 hover:underline flex items-center gap-1"
+          >
+            Explore Feed <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {COMMUNITY_BUILDS.map((build) => (
+            <div
+              key={build.id}
+              className="glass-panel rounded-3xl overflow-hidden flex flex-col lg:flex-row hover:border-blue-500/30 transition-all duration-300"
+            >
+              {/* Build Image */}
+              <div className="lg:w-[45%] h-56 lg:h-auto relative bg-[#0F172A] overflow-hidden border-b lg:border-b-0 lg:border-r border-white/5">
+                <img
+                  src={build.imageUrl}
+                  alt={build.name}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
+                <div className="absolute bottom-4 left-4">
+                  <p className="text-xs text-slate-350">Designed by</p>
+                  <p className="text-sm font-bold text-white">@{build.creator}</p>
+                </div>
+              </div>
+
+              {/* Build Stats / Actions */}
+              <div className="flex-1 p-6 flex flex-col justify-between text-left font-sans">
+                <div>
+                  <h3 className="text-xl font-bold text-white">{build.name}</h3>
+                  <div className="flex items-center gap-4 mt-2 font-mono text-[11px] text-slate-400">
+                    <span>Budget: <strong className="text-white">${build.budget.toFixed(2)}</strong></span>
+                    <span>Score: <strong className="text-blue-400">98%</strong></span>
+                  </div>
+                  
+                  <div className="mt-4 space-y-1.5 text-xs text-slate-400">
+                    <p className="truncate">CPU: <strong className="text-slate-200">{build.specs.cpu}</strong></p>
+                    <p className="truncate">GPU: <strong className="text-slate-200">{build.specs.gpu}</strong></p>
+                    <p className="truncate">Case: <strong className="text-slate-200">{build.specs.case}</strong></p>
+                  </div>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between text-xs text-slate-400">
+                  <div className="flex items-center gap-4">
+                    <span className="flex items-center gap-1 hover:text-white transition-colors cursor-pointer">
+                      <Heart className="w-4 h-4 text-red-500 fill-red-500" /> {build.likes}
+                    </span>
+                    <span>
+                      💬 {build.comments}
+                    </span>
+                  </div>
+                  
+                  <button
+                    onClick={() => navigate(`/builder?clone=${build.id}`)}
+                    className="bg-blue-500/10 hover:bg-blue-500 text-blue-400 hover:text-white px-4 py-2 rounded-lg font-bold transition-all text-xs cursor-pointer shadow-sm"
+                  >
+                    Clone Rig
+                  </button>
+                </div>
+              </div>
             </div>
-            <span className="text-[10px] text-slate-450 font-bold uppercase tracking-widest block font-mono">
-              MEDITATION • BALCONY
-            </span>
-            <h3 className="font-bold text-base text-slate-800 group-hover:text-black cursor-pointer group-hover:underline decoration-1 underline-offset-4">
-              Designing Wabi-Sabi Sanctuaries with Preserved Moss & Sandscapes
-            </h3>
-            <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">
-              Delving into natural sandstone ceramics, aroma vapor diffusion, and zero-maintenance preserved forest moss artwork to construct spaces of active meditation.
-            </p>
-          </article>
+          ))}
         </div>
       </section>
     </div>

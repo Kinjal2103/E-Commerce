@@ -2,16 +2,24 @@ const mongoose = require('mongoose');
 
 const productSchema = new mongoose.Schema(
   {
+    _id: {
+      type: String,
+      required: [true, 'A product must have a string ID.']
+    },
     name: {
       type: String,
       required: [true, 'A product must have a name.'],
       trim: true,
       minlength: [3, 'A product name must be at least 3 characters long.']
     },
+    brand: {
+      type: String,
+      trim: true
+    },
     description: {
       type: String,
-      required: [true, 'A product must have a description.'],
-      trim: true
+      trim: true,
+      default: ''
     },
     price: {
       type: Number,
@@ -23,25 +31,6 @@ const productSchema = new mongoose.Schema(
       required: [true, 'A product must have a category.'],
       trim: true
     },
-    room: {
-      type: String,
-      trim: true
-    },
-    aesthetic: {
-      type: String,
-      trim: true
-    },
-    colors: [
-      {
-        name: { type: String },
-        hex: { type: String }
-      }
-    ],
-    sizes: [
-      {
-        type: String
-      }
-    ],
     imageUrl: {
       type: String,
       required: [true, 'A product must have an imageUrl.']
@@ -75,6 +64,39 @@ const productSchema = new mongoose.Schema(
       min: [0, 'Stock cannot be negative.'],
       default: 10
     },
+    specs: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {}
+    },
+    pros: [
+      {
+        type: String
+      }
+    ],
+    cons: [
+      {
+        type: String
+      }
+    ],
+    room: {
+      type: String,
+      trim: true
+    },
+    aesthetic: {
+      type: String,
+      trim: true
+    },
+    colors: [
+      {
+        name: { type: String },
+        hex: { type: String }
+      }
+    ],
+    sizes: [
+      {
+        type: String
+      }
+    ],
     materials: {
       type: String
     },

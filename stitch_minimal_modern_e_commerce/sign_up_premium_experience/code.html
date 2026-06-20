@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Sign Up | LUMINA</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "error-container": "#ffdad6",
+                      "secondary": "#5c5f61",
+                      "tertiary-fixed-dim": "#dec29a",
+                      "background": "#f8f9ff",
+                      "tertiary-container": "#271901",
+                      "outline": "#76777d",
+                      "surface-container": "#e5eeff",
+                      "on-background": "#0b1c30",
+                      "primary-fixed": "#dae2fd",
+                      "surface-container-lowest": "#ffffff",
+                      "secondary-container": "#e0e3e5",
+                      "on-error": "#ffffff",
+                      "on-secondary": "#ffffff",
+                      "primary-fixed-dim": "#bec6e0",
+                      "on-secondary-container": "#626567",
+                      "on-primary-fixed-variant": "#3f465c",
+                      "secondary-fixed": "#e0e3e5",
+                      "surface": "#f8f9ff",
+                      "on-tertiary": "#ffffff",
+                      "on-tertiary-fixed": "#271901",
+                      "on-secondary-fixed-variant": "#444749",
+                      "inverse-surface": "#213145",
+                      "surface-bright": "#f8f9ff",
+                      "on-surface-variant": "#45464d",
+                      "error": "#ba1a1a",
+                      "surface-dim": "#cbdbf5",
+                      "surface-container-highest": "#d3e4fe",
+                      "on-tertiary-fixed-variant": "#574425",
+                      "surface-variant": "#d3e4fe",
+                      "inverse-primary": "#bec6e0",
+                      "on-surface": "#0b1c30",
+                      "tertiary": "#000000",
+                      "surface-tint": "#565e74",
+                      "surface-container-low": "#eff4ff",
+                      "primary-container": "#131b2e",
+                      "inverse-on-surface": "#eaf1ff",
+                      "outline-variant": "#c6c6cd",
+                      "on-primary-container": "#7c839b",
+                      "secondary-fixed-dim": "#c4c7c9",
+                      "on-primary-fixed": "#131b2e",
+                      "tertiary-fixed": "#fcdeb5",
+                      "surface-container-high": "#dce9ff",
+                      "on-secondary-fixed": "#191c1e",
+                      "primary": "#000000",
+                      "on-tertiary-container": "#98805d",
+                      "on-primary": "#ffffff",
+                      "on-error-container": "#93000a"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "12px",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "xs": "4px",
+                      "xl": "80px",
+                      "sm": "12px",
+                      "base": "8px",
+                      "margin": "32px",
+                      "gutter": "24px",
+                      "lg": "48px",
+                      "md": "24px"
+              },
+              "fontFamily": {
+                      "display-lg": ["Inter", "sans-serif"],
+                      "headline-md": ["Inter", "sans-serif"],
+                      "body-lg": ["Inter", "sans-serif"],
+                      "label-sm": ["Inter", "sans-serif"],
+                      "label-md": ["Inter", "sans-serif"],
+                      "body-md": ["Inter", "sans-serif"]
+              },
+              "fontSize": {
+                      "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                      "headline-md": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                      "label-sm": ["12px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                      "label-md": ["14px", {"lineHeight": "1.4", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                      "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}]
+              }
+            },
+          },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .password-strength-bar {
+            transition: width 0.3s ease-in-out, background-color 0.3s ease-in-out;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(226, 232, 240, 0.5);
+        }
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex items-center justify-center font-body-md relative overflow-hidden">
+<!-- Atmospheric Background Elements -->
+<div class="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden z-0">
+<div class="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[120px] animate-float"></div>
+<div class="absolute bottom-[-10%] left-[-10%] w-[35%] h-[35%] bg-surface-container-highest/30 rounded-full blur-[100px] animate-float" style="animation-delay: -2s;"></div>
+</div>
+<!-- Main Signup Container -->
+<main class="relative z-10 w-full max-w-[480px] px-gutter py-xl">
+<div class="glass-card p-lg rounded-xl shadow-xl flex flex-col items-center">
+<!-- Brand Logo -->
+<div class="mb-lg text-center">
+<span class="font-display-lg text-display-lg tracking-tighter text-primary">LUMINA</span>
+<p class="font-label-md text-label-md text-secondary mt-xs">ELEVATE YOUR EXPERIENCE</p>
+</div>
+<div class="w-full text-center mb-md">
+<h1 class="font-headline-md text-headline-md text-on-surface">Create Account</h1>
+<p class="font-body-md text-body-md text-secondary mt-xs">Join our premium community today</p>
+</div>
+<!-- Signup Form -->
+<form class="w-full space-y-md" id="signup-form" onsubmit="return false">
+<!-- Full Name -->
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-on-surface-variant block ml-1" for="name">Full Name</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-outline-variant">person</span>
+<input class="w-full pl-11 pr-md py-sm bg-surface-container-lowest border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all font-body-md text-on-surface" id="name" placeholder="John Doe" required="" type="text"/>
+</div>
+</div>
+<!-- Email -->
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-on-surface-variant block ml-1" for="email">Email Address</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-outline-variant">mail</span>
+<input class="w-full pl-11 pr-md py-sm bg-surface-container-lowest border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all font-body-md text-on-surface" id="email" placeholder="name@example.com" required="" type="email"/>
+</div>
+<!-- Mock Validation Hint -->
+<p class="text-[11px] text-secondary ml-1 mt-1 font-label-sm">We'll never share your email.</p>
+</div>
+<!-- Password -->
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-on-surface-variant block ml-1" for="password">Password</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-outline-variant">lock</span>
+<input class="w-full pl-11 pr-md py-sm bg-surface-container-lowest border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all font-body-md text-on-surface" id="password" onkeyup="checkPasswordStrength(this.value)" placeholder="••••••••" required="" type="password"/>
+<button class="absolute right-sm top-1/2 -translate-y-1/2 text-outline-variant hover:text-primary transition-colors" type="button">
+<span class="material-symbols-outlined">visibility</span>
+</button>
+</div>
+<!-- Password Strength Indicator -->
+<div class="mt-sm space-y-xs">
+<div class="h-1 w-full bg-outline-variant/30 rounded-full overflow-hidden">
+<div class="password-strength-bar h-full w-0 bg-error" id="strength-bar"></div>
+</div>
+<div class="flex justify-between items-center px-1">
+<span class="font-label-sm text-label-sm text-secondary" id="strength-text">Password strength</span>
+<span class="font-label-sm text-label-sm text-outline-variant">Min. 8 chars</span>
+</div>
+</div>
+</div>
+<!-- Confirm Password -->
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-on-surface-variant block ml-1" for="confirm-password">Confirm Password</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-outline-variant">check_circle</span>
+<input class="w-full pl-11 pr-md py-sm bg-surface-container-lowest border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all font-body-md text-on-surface" id="confirm-password" placeholder="••••••••" required="" type="password"/>
+</div>
+<!-- Error State Mockup (Initially Hidden) -->
+<div class="hidden items-center gap-1 text-error mt-1 ml-1" id="password-match-error">
+<span class="material-symbols-outlined text-[16px]">error</span>
+<span class="font-label-sm text-label-sm">Passwords do not match</span>
+</div>
+</div>
+<!-- T&C Checkbox -->
+<div class="flex items-start gap-sm pt-xs">
+<div class="flex items-center h-5">
+<input class="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary transition-all cursor-pointer" id="terms" required="" type="checkbox"/>
+</div>
+<label class="font-body-md text-label-md text-secondary leading-tight cursor-pointer" for="terms">
+                        I agree to the <a class="text-primary font-semibold hover:underline" href="#">Terms of Service</a> and <a class="text-primary font-semibold hover:underline" href="#">Privacy Policy</a>.
+                    </label>
+</div>
+<!-- Action Buttons -->
+<div class="pt-sm space-y-md">
+<button class="w-full py-sm bg-primary text-on-primary rounded-xl font-label-md text-label-md hover:opacity-90 active:scale-[0.98] transition-all shadow-md flex items-center justify-center gap-2" onclick="simulateSubmit()" type="submit">
+                        Create Account
+                    </button>
+<div class="relative flex items-center py-xs">
+<div class="flex-grow border-t border-outline-variant/30"></div>
+<span class="flex-shrink mx-4 font-label-sm text-label-sm text-outline-variant">OR CONTINUE WITH</span>
+<div class="flex-grow border-t border-outline-variant/30"></div>
+</div>
+<button class="w-full py-sm bg-surface-container-lowest border border-outline-variant rounded-xl font-label-md text-label-md text-on-surface hover:bg-secondary-container/30 active:scale-[0.98] transition-all flex items-center justify-center gap-3" type="button">
+<svg class="w-5 h-5" viewbox="0 0 24 24">
+<path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"></path>
+<path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"></path>
+<path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"></path>
+<path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"></path>
+</svg>
+                        Google Signup
+                    </button>
+</div>
+</form>
+<p class="mt-lg font-body-md text-label-md text-secondary">
+                Already have an account? 
+                <a class="text-primary font-bold hover:underline" href="#">Login here</a>
+</p>
+</div>
+<!-- Success Toast Mockup (Initially hidden) -->
+<div class="fixed bottom-gutter left-1/2 -translate-x-1/2 glass-card border-none bg-primary text-on-primary px-lg py-sm rounded-full shadow-lg flex items-center gap-sm opacity-0 translate-y-10 transition-all duration-500 pointer-events-none" id="success-toast">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-label-md">Account created successfully! Redirecting...</span>
+</div>
+</main>
+<script>
+        function checkPasswordStrength(val) {
+            const bar = document.getElementById('strength-bar');
+            const text = document.getElementById('strength-text');
+            
+            if (val.length === 0) {
+                bar.style.width = '0%';
+                text.innerText = 'Password strength';
+                text.className = 'font-label-sm text-label-sm text-secondary';
+                return;
+            }
+
+            let strength = 0;
+            if (val.length >= 8) strength += 25;
+            if (val.match(/[a-z]/) && val.match(/[A-Z]/)) strength += 25;
+            if (val.match(/[0-9]/)) strength += 25;
+            if (val.match(/[^a-zA-Z0-9]/)) strength += 25;
+
+            bar.style.width = strength + '%';
+            
+            if (strength <= 25) {
+                bar.className = 'password-strength-bar h-full bg-error';
+                text.innerText = 'Weak';
+                text.className = 'font-label-sm text-label-sm text-error';
+            } else if (strength <= 75) {
+                bar.className = 'password-strength-bar h-full bg-[#fbbc05]';
+                text.innerText = 'Moderate';
+                text.className = 'font-label-sm text-label-sm text-[#fbbc05]';
+            } else {
+                bar.className = 'password-strength-bar h-full bg-[#34a853]';
+                text.innerText = 'Strong';
+                text.className = 'font-label-sm text-label-sm text-[#34a853]';
+            }
+        }
+
+        function simulateSubmit() {
+            const form = document.getElementById('signup-form');
+            const pass = document.getElementById('password');
+            const confirmPass = document.getElementById('confirm-password');
+            const errorHint = document.getElementById('password-match-error');
+            const toast = document.getElementById('success-toast');
+
+            // Simple match validation
+            if (pass.value !== confirmPass.value && confirmPass.value !== '') {
+                errorHint.classList.remove('hidden');
+                errorHint.classList.add('flex');
+                confirmPass.classList.add('border-error');
+                return;
+            } else {
+                errorHint.classList.add('hidden');
+                errorHint.classList.remove('flex');
+                confirmPass.classList.remove('border-error');
+            }
+
+            if (form.checkValidity()) {
+                // Show success mockup
+                toast.classList.remove('opacity-0', 'translate-y-10');
+                toast.classList.add('opacity-100', 'translate-y-0');
+                
+                setTimeout(() => {
+                    toast.classList.add('opacity-0', 'translate-y-10');
+                    toast.classList.remove('opacity-100', 'translate-y-0');
+                }, 3000);
+            }
+        }
+
+        // Real-time matching validation
+        document.getElementById('confirm-password').addEventListener('input', function() {
+            const pass = document.getElementById('password').value;
+            const confirmPass = this.value;
+            const errorHint = document.getElementById('password-match-error');
+            
+            if (confirmPass !== '' && pass !== confirmPass) {
+                errorHint.classList.remove('hidden');
+                errorHint.classList.add('flex');
+                this.classList.add('border-error');
+            } else {
+                errorHint.classList.add('hidden');
+                errorHint.classList.remove('flex');
+                this.classList.remove('border-error');
+            }
+        });
+    </script>
+</body></html>

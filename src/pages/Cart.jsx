@@ -76,14 +76,61 @@ export default function Cart() {
     }
   };
 
-  const handleStartCheckout = (e) => {
+  const handleStartCheckout = async (e) => {
     e.preventDefault();
+    setCheckoutError('');
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setCheckoutError('Please log in to complete your purchase.');
+      navigate('/login');
+      return;
+    }
+
     setIsCheckingOut(true);
-    setTimeout(() => {
-      setIsCheckingOut(false);
+
+    try {
+      const orderItems = cart.map((item) => ({
+        name: item.product.name,
+        qty: item.quantity,
+        image: item.product.imageUrl,
+        price: item.product.price,
+        product: item.product._id || item.product.id
+      }));
+
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          orderItems,
+          shippingAddress: {
+            address: shippingForm.address,
+            city: shippingForm.city,
+            postalCode: shippingForm.zip,
+            country: 'India'
+          },
+          paymentMethod: 'Card',
+          taxPrice: salesTax,
+          shippingPrice: shippingCost,
+          totalPrice: total
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Checkout failed. Please try again.');
+      }
+
       setCheckoutComplete(true);
       clearCart();
-    }, 2200);
+    } catch (err) {
+      setCheckoutError(err.message || 'Network error. Please try again.');
+    } finally {
+      setIsCheckingOut(false);
+    }
   };
 
   const handleCloseSuccess = () => {
@@ -274,6 +321,12 @@ export default function Cart() {
                   Secure Checkout Details
                 </h2>
               </div>
+
+              {checkoutError && (
+                <div className="rounded-md bg-red-50 p-4 border border-[#ffdad6] text-sm text-[#ba1a1a]">
+                  {checkoutError}
+                </div>
+              )}
 
               {/* Customer Contact */}
               <div className="space-y-4">

@@ -25,7 +25,7 @@ exports.createOrder = catchAsync(async (req, res, next) => {
     if (product.stock < item.qty) {
       return next(
         new AppError(
-          `Insufficient inventory for "${product.title}". Requested: ${item.qty}, remaining: ${product.stock}`,
+          `Insufficient inventory for "${product.name}". Requested: ${item.qty}, remaining: ${product.stock}`,
           400
         )
       );
@@ -59,7 +59,7 @@ exports.createOrder = catchAsync(async (req, res, next) => {
 exports.getOrderById = catchAsync(async (req, res, next) => {
   const order = await Order.findById(req.params.id)
     .populate('user', 'name email')
-    .populate('orderItems.product', 'title price brand images');
+    .populate('orderItems.product', 'name price imageUrl');
 
   if (!order) {
     return next(new AppError('No order found with the provided identifier.', 404));
@@ -76,6 +76,16 @@ exports.getOrderById = catchAsync(async (req, res, next) => {
     success: true,
     data: {
       order
+    }
+  });
+});
+
+exports.getMyOrders = catchAsync(async (req, res, next) => {
+  const orders = await Order.find({ user: req.user._id }).sort('-createdAt');
+  res.status(200).json({
+    success: true,
+    data: {
+      orders
     }
   });
 });

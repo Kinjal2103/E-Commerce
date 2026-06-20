@@ -8,8 +8,7 @@ class APIFeatures {
     if (this.queryString.keyword) {
       const regexSearch = {
         $or: [
-          { title: { $regex: this.queryString.keyword, $options: 'i' } },
-          { brand: { $regex: this.queryString.keyword, $options: 'i' } },
+          { name: { $regex: this.queryString.keyword, $options: 'i' } },
           { description: { $regex: this.queryString.keyword, $options: 'i' } }
         ]
       };

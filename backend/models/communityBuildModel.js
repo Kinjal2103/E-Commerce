@@ -247,6 +247,7 @@ communityBuildSchema.set('toJSON', {
     ret.creator = ret.usernameSnapshot;
     ret.imageUrl = ret.coverImage;
     ret.budget = ret.totalCost;
+    ret.likedBy = ret.likes ? ret.likes.map(id => id.toString()) : [];
     ret.likes = ret.likesCount;
     ret.comments = ret.commentsCount;
     

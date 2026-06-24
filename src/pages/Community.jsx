@@ -3,12 +3,34 @@ import { useNavigate } from 'react-router-dom';
 import { COMMUNITY_BUILDS, PRODUCTS } from '../data/hardwareData';
 import { Heart, MessageSquare, Bookmark, Share2, Wrench, X, User, PlusCircle, AlertCircle, Sparkles } from 'lucide-react';
 
+const getUserIdFromToken = () => {
+  const token = localStorage.getItem('token');
+  if (!token || token === 'mock_token_success') return null;
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload).id;
+  } catch (err) {
+    return null;
+  }
+};
+
+const getSavedBuildsKey = () => {
+  const userId = getUserIdFromToken();
+  return userId ? `forge_saved_builds_${userId}` : 'forge_saved_builds_guest';
+};
+
 export default function Community() {
   const navigate = useNavigate();
   const [posts, setPosts] = useState(COMMUNITY_BUILDS);
   const [productsList, setProductsList] = useState([]);
   const [selectedPost, setSelectedPost] = useState(null);
   const [commentInput, setCommentInput] = useState('');
+  
+  const currentUserId = getUserIdFromToken();
   
   // Showcase Share Form States
   const [showShareModal, setShowShareModal] = useState(false);
@@ -35,7 +57,12 @@ export default function Community() {
   useEffect(() => {
     const fetchCommunityBuilds = async () => {
       try {
-        const res = await fetch('/api/products/community-builds');
+        const token = localStorage.getItem('token');
+        const headers = {};
+        if (token && token !== 'mock_token_success') {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        const res = await fetch('/api/products/community-builds', { headers });
         const data = await res.json();
         if (data.success && data.communityBuilds && data.communityBuilds.length > 0) {
           const mappedBuilds = data.communityBuilds.map(b => ({
@@ -70,7 +97,6 @@ export default function Community() {
   }, []);
 
   const handleLike = async (id) => {
-    const likedKey = `liked_${id}`;
     const token = localStorage.getItem('token');
     
     if (token && token !== 'mock_token_success') {
@@ -83,13 +109,24 @@ export default function Community() {
         });
         const data = await res.json();
         if (data.success) {
-          if (data.liked) {
-            localStorage.setItem(likedKey, 'true');
-          } else {
-            localStorage.removeItem(likedKey);
-          }
           setPosts(prev =>
-            prev.map(post => post.id === id ? { ...post, likes: data.likesCount } : post)
+            prev.map(post => {
+              if (post.id === id) {
+                const likedBy = Array.isArray(post.likedBy) ? [...post.likedBy] : [];
+                if (data.liked) {
+                  if (currentUserId && !likedBy.includes(currentUserId)) {
+                    likedBy.push(currentUserId);
+                  }
+                } else {
+                  if (currentUserId) {
+                    const idx = likedBy.indexOf(currentUserId);
+                    if (idx > -1) likedBy.splice(idx, 1);
+                  }
+                }
+                return { ...post, likes: data.likesCount, likedBy };
+              }
+              return post;
+            })
           );
           return;
         }
@@ -99,6 +136,7 @@ export default function Community() {
     }
 
     // Local state fallback
+    const likedKey = `liked_${id}`;
     const isLiked = localStorage.getItem(likedKey);
     if (isLiked) {
       localStorage.removeItem(likedKey);
@@ -147,9 +185,11 @@ export default function Community() {
     localStorage.setItem('forge_current_build', JSON.stringify(mappedBuild));
     navigate('/builder');
   };
-
   const openComments = async (post) => {
     setSelectedPost(post);
+    if (String(post.id).startsWith('build-')) {
+      return;
+    }
     try {
       const res = await fetch(`/api/community-builds/${post.id}/comments`);
       const data = await res.json();
@@ -173,7 +213,7 @@ export default function Community() {
     if (!commentInput.trim()) return;
 
     const token = localStorage.getItem('token');
-    if (token && token !== 'mock_token_success') {
+    if (token && token !== 'mock_token_success' && !String(selectedPost.id).startsWith('build-')) {
       try {
         const res = await fetch(`/api/community-builds/${selectedPost.id}/comments`, {
           method: 'POST',
@@ -204,7 +244,6 @@ export default function Community() {
       }
     }
 
-    // Local fallback
     const newComment = {
       user: 'You',
       text: commentInput.trim()
@@ -233,7 +272,8 @@ export default function Community() {
     }
 
     // Load saved builds from local storage
-    const stored = localStorage.getItem('forge_saved_builds');
+    const buildsKey = getSavedBuildsKey();
+    const stored = localStorage.getItem(buildsKey);
     const parsed = stored ? JSON.parse(stored) : [];
     
     // Filter builds that have all 8 slots selected
@@ -371,7 +411,6 @@ export default function Community() {
                 <h3 className="text-xl font-bold text-white mt-0.5">{post.name}</h3>
                 <p className="text-xs text-slate-300 mt-1">Shared by @{post.creator}</p>
               </div>
-
               <div className="absolute bottom-4 right-4 bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full text-xs font-bold border border-blue-500/25">
                 Est: ₹{post.budget ? post.budget.toLocaleString('en-IN') : '0'}
               </div>
@@ -393,12 +432,18 @@ export default function Community() {
                   <button
                     onClick={() => handleLike(post.id)}
                     className={`flex items-center gap-1.5 transition-colors cursor-pointer ${
-                      localStorage.getItem(`liked_${post.id}`) ? 'text-red-500 font-semibold' : 'text-slate-400 hover:text-white'
+                      (currentUserId
+                        ? Array.isArray(post.likedBy) && post.likedBy.includes(currentUserId)
+                        : localStorage.getItem(`liked_${post.id}`))
+                        ? 'text-red-500 font-semibold'
+                        : 'text-slate-400 hover:text-white'
                     }`}
                   >
                     <Heart
                       className={`w-4 h-4 transition-all ${
-                        localStorage.getItem(`liked_${post.id}`)
+                        (currentUserId
+                          ? Array.isArray(post.likedBy) && post.likedBy.includes(currentUserId)
+                          : localStorage.getItem(`liked_${post.id}`))
                           ? 'text-red-500 fill-red-500'
                           : 'text-slate-400 fill-none'
                       }`}

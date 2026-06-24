@@ -372,45 +372,59 @@ exports.toggleLikeCommunityBuild = catchAsync(async (req, res, next) => {
   const buildId = req.params.id;
   const userId = req.user._id;
 
-  const build = await CommunityBuild.findById(buildId);
-  if (!build) {
+  // Check build existence
+  const buildExists = await CommunityBuild.findById(buildId);
+  if (!buildExists) {
     return next(new AppError('No community build found with that ID.', 404));
   }
 
-  // Check if user has already liked the post
-  const likeIndex = build.likes.findIndex(id => id.toString() === userId.toString());
+  // Try to unlike atomically (only if user has liked)
+  let build = await CommunityBuild.findOneAndUpdate(
+    { _id: buildId, likes: userId },
+    {
+      $pull: { likes: userId },
+      $inc: { likesCount: -1 }
+    },
+    { returnDocument: 'after' }
+  );
 
-  if (likeIndex > -1) {
-    // Unlike
-    build.likes.splice(likeIndex, 1);
-    build.likesCount = build.likes.length;
-    await build.save();
-
-    // Decrement user stats
+  let liked = false;
+  if (build) {
+    // User successfully unliked
+    // Decrement author totalLikesReceived
     await User.findByIdAndUpdate(build.author, { $inc: { totalLikesReceived: -1 } });
     await updateReputationScore(build.author);
-
-    res.status(200).json({
-      success: true,
-      liked: false,
-      likesCount: build.likesCount
-    });
   } else {
-    // Like
-    build.likes.push(userId);
-    build.likesCount = build.likes.length;
-    await build.save();
+    // Try to like atomically (only if user hasn't liked)
+    build = await CommunityBuild.findOneAndUpdate(
+      { _id: buildId, likes: { $ne: userId } },
+      {
+        $addToSet: { likes: userId },
+        $inc: { likesCount: 1 }
+      },
+      { returnDocument: 'after' }
+    );
 
-    // Increment user stats
-    await User.findByIdAndUpdate(build.author, { $inc: { totalLikesReceived: 1 } });
-    await updateReputationScore(build.author);
-
-    res.status(200).json({
-      success: true,
-      liked: true,
-      likesCount: build.likesCount
-    });
+    if (build) {
+      liked = true;
+      // Increment author totalLikesReceived
+      await User.findByIdAndUpdate(build.author, { $inc: { totalLikesReceived: 1 } });
+      await updateReputationScore(build.author);
+    } else {
+      // Concurrency fallback / refetch to return current count
+      build = await CommunityBuild.findById(buildId);
+      if (!build) {
+        return next(new AppError('No community build found with that ID.', 404));
+      }
+      liked = build.likes.some(id => id.toString() === userId.toString());
+    }
   }
+
+  res.status(200).json({
+    success: true,
+    liked,
+    likesCount: build.likesCount
+  });
 });
 
 /**
@@ -487,14 +501,14 @@ exports.addComment = catchAsync(async (req, res, next) => {
     return next(new AppError('Comment content cannot be empty.', 400));
   }
 
-  const build = await CommunityBuild.findById(buildId);
-  if (!build) {
+  const buildExists = await CommunityBuild.findById(buildId);
+  if (!buildExists) {
     return next(new AppError('No community build found with that ID.', 404));
   }
 
   // If nested reply, check parent comment validity
   if (parentCommentId) {
-    const parentCommentExists = build.comments.some(c => c._id.toString() === parentCommentId.toString());
+    const parentCommentExists = buildExists.comments.some(c => c._id.toString() === parentCommentId.toString());
     if (!parentCommentExists) {
       return next(new AppError('Parent comment does not exist.', 400));
     }
@@ -508,15 +522,22 @@ exports.addComment = catchAsync(async (req, res, next) => {
     parentCommentId: parentCommentId || null
   };
 
-  build.comments.push(comment);
-  build.commentsCount = build.comments.length;
-  await build.save();
-
-  // Populate author details on the newly added comment subdocument
-  await build.populate({
+  // Push new comment and increment commentsCount atomically
+  const build = await CommunityBuild.findByIdAndUpdate(
+    buildId,
+    {
+      $push: { comments: comment },
+      $inc: { commentsCount: 1 }
+    },
+    { returnDocument: 'after', runValidators: true }
+  ).populate({
     path: 'comments.author',
     select: 'name profilePicture isVerifiedBuilder'
   });
+
+  if (!build) {
+    return next(new AppError('No community build found with that ID.', 404));
+  }
 
   const populatedComment = build.comments.find(c => c._id.toString() === commentId.toString());
 
@@ -590,9 +611,14 @@ exports.deleteComment = catchAsync(async (req, res, next) => {
     }
   });
 
-  build.comments = build.comments.filter(c => !idsToDelete.includes(c._id.toString()));
-  build.commentsCount = build.comments.length;
-  await build.save();
+  // Perform atomic pull and count decrement
+  await CommunityBuild.findByIdAndUpdate(
+    build._id,
+    {
+      $pull: { comments: { _id: { $in: idsToDelete } } },
+      $inc: { commentsCount: -idsToDelete.length }
+    }
+  );
 
   res.status(200).json({
     success: true,

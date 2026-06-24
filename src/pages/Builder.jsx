@@ -4,6 +4,26 @@ import { useCart } from '../context/CartContext';
 import { PRODUCTS, GAMES } from '../data/hardwareData';
 import { Cpu, Layers, Wrench, Trash2, ShieldAlert, CheckCircle2, RefreshCw, BarChart2, Share2, FileDown, PlusCircle, Bookmark, ShoppingCart } from 'lucide-react';
 
+const getUserIdFromToken = () => {
+  const token = localStorage.getItem('token');
+  if (!token || token === 'mock_token_success') return null;
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload).id;
+  } catch (err) {
+    return null;
+  }
+};
+
+const getSavedBuildsKey = () => {
+  const userId = getUserIdFromToken();
+  return userId ? `forge_saved_builds_${userId}` : 'forge_saved_builds_guest';
+};
+
 export default function Builder() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -282,7 +302,8 @@ export default function Builder() {
     }
 
     try {
-      const stored = localStorage.getItem('forge_saved_builds');
+      const buildsKey = getSavedBuildsKey();
+      const stored = localStorage.getItem(buildsKey);
       const savedBuilds = stored ? JSON.parse(stored) : [];
 
       const newBuildRecord = {
@@ -300,7 +321,7 @@ export default function Builder() {
       };
 
       savedBuilds.push(newBuildRecord);
-      localStorage.setItem('forge_saved_builds', JSON.stringify(savedBuilds));
+      localStorage.setItem(buildsKey, JSON.stringify(savedBuilds));
 
       setSavedStatus('✓ Configuration saved to your Profile Saved Builds!');
       setTimeout(() => setSavedStatus(''), 4000);

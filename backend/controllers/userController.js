@@ -1,16 +1,19 @@
 const User = require('../models/userModel');
 const CommunityBuild = require('../models/communityBuildModel');
 const { catchAsync } = require('../middleware/errorMiddleware');
+const mongoose = require('mongoose');
 
 // Helper to dynamically calculate and sync user showcase stats
 const syncUserStats = async (userId, userDoc) => {
+  const authorId = typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId;
+
   const showcasePostsCount = await CommunityBuild.countDocuments({
-    author: userId,
+    author: authorId,
     status: 'published'
   });
 
   const likeData = await CommunityBuild.aggregate([
-    { $match: { author: userId } },
+    { $match: { author: authorId } },
     { $group: { _id: null, totalLikes: { $sum: '$likesCount' } } }
   ]);
   const totalLikesReceived = likeData.length > 0 ? likeData[0].totalLikes : 0;
@@ -65,7 +68,7 @@ exports.updateProfile = catchAsync(async (req, res, next) => {
   const updatedUser = await User.findByIdAndUpdate(
     req.user._id,
     { name, phone, address, profilePicture, bio },
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   );
 
   const stats = await syncUserStats(req.user._id, updatedUser);

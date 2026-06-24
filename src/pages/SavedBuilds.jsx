@@ -2,6 +2,26 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Trash2, Edit3, Copy, Share2, Wrench, ShieldCheck, Heart } from 'lucide-react';
 
+const getUserIdFromToken = () => {
+  const token = localStorage.getItem('token');
+  if (!token || token === 'mock_token_success') return null;
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload).id;
+  } catch (err) {
+    return null;
+  }
+};
+
+const getSavedBuildsKey = () => {
+  const userId = getUserIdFromToken();
+  return userId ? `forge_saved_builds_${userId}` : 'forge_saved_builds_guest';
+};
+
 export default function SavedBuilds() {
   const navigate = useNavigate();
   const [builds, setBuilds] = useState([]);
@@ -9,9 +29,12 @@ export default function SavedBuilds() {
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('forge_saved_builds');
+      const buildsKey = getSavedBuildsKey();
+      const stored = localStorage.getItem(buildsKey);
       if (stored) {
-        setBuilds(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        const cleaned = parsed.filter(b => b && b.id && !String(b.id).startsWith('preseed'));
+        setBuilds(cleaned);
       } else {
         setBuilds([]);
       }
@@ -23,7 +46,8 @@ export default function SavedBuilds() {
   const handleDelete = (id) => {
     const updated = builds.filter(b => b.id !== id);
     setBuilds(updated);
-    localStorage.setItem('forge_saved_builds', JSON.stringify(updated));
+    const buildsKey = getSavedBuildsKey();
+    localStorage.setItem(buildsKey, JSON.stringify(updated));
     showStatus('✓ Build successfully deleted.');
   };
 

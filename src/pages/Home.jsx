@@ -124,12 +124,29 @@ function WebGLHeroBackground() {
   return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />;
 }
 
+const getUserIdFromToken = () => {
+  const token = localStorage.getItem('token');
+  if (!token || token === 'mock_token_success') return null;
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload).id;
+  } catch (err) {
+    return null;
+  }
+};
+
 export default function Home() {
   const navigate = useNavigate();
   const { quickAdd } = useCart();
   const trendingCarouselRef = useRef(null);
   const [products, setProducts] = useState(PRODUCTS);
   const [showcaseBuilds, setShowcaseBuilds] = useState(COMMUNITY_BUILDS);
+
+  const currentUserId = getUserIdFromToken();
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -150,7 +167,12 @@ export default function Home() {
 
     const fetchCommunityBuilds = async () => {
       try {
-        const res = await fetch('/api/products/community-builds');
+        const token = localStorage.getItem('token');
+        const headers = {};
+        if (token && token !== 'mock_token_success') {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        const res = await fetch('/api/products/community-builds', { headers });
         const data = await res.json();
         if (data.success && data.communityBuilds && data.communityBuilds.length > 0) {
           const mapped = data.communityBuilds.map(b => ({
@@ -170,7 +192,9 @@ export default function Home() {
 
   const handleLike = async (id) => {
     const token = localStorage.getItem('token');
-    if (token && token !== 'mock_token_success' && !id.startsWith('build-')) {
+    const userId = getUserIdFromToken();
+
+    if (token && token !== 'mock_token_success' && !String(id).startsWith('build-')) {
       try {
         const res = await fetch(`/api/community-builds/${id}/like`, {
           method: 'POST',
@@ -181,7 +205,21 @@ export default function Home() {
         const data = await res.json();
         if (data.success) {
           setShowcaseBuilds(prev =>
-            prev.map(post => post.id === id ? { ...post, likes: data.likesCount } : post)
+            prev.map(post => {
+              if (post.id === id) {
+                const likedBy = Array.isArray(post.likedBy) ? [...post.likedBy] : [];
+                if (data.liked) {
+                  if (userId && !likedBy.includes(userId)) likedBy.push(userId);
+                } else {
+                  if (userId) {
+                    const idx = likedBy.indexOf(userId);
+                    if (idx > -1) likedBy.splice(idx, 1);
+                  }
+                }
+                return { ...post, likes: data.likesCount, likedBy };
+              }
+              return post;
+            })
           );
           return;
         }
@@ -631,14 +669,22 @@ export default function Home() {
                     <button
                       onClick={() => handleLike(build.id)}
                       className={`flex items-center gap-1 transition-colors cursor-pointer ${
-                        localStorage.getItem(`liked_${build.id}`) ? 'text-red-500 font-semibold' : 'text-slate-400 hover:text-white'
+                        (currentUserId
+                          ? Array.isArray(build.likedBy) && build.likedBy.includes(currentUserId)
+                          : localStorage.getItem(`liked_${build.id}`))
+                          ? 'text-red-500 font-semibold'
+                          : 'text-slate-400 hover:text-white'
                       }`}
                     >
                       <Heart className={`w-4 h-4 transition-all ${
-                        localStorage.getItem(`liked_${build.id}`) ? 'text-red-500 fill-red-500' : 'text-slate-450 fill-none'
+                        (currentUserId
+                          ? Array.isArray(build.likedBy) && build.likedBy.includes(currentUserId)
+                          : localStorage.getItem(`liked_${build.id}`))
+                          ? 'text-red-500 fill-red-500'
+                          : 'text-slate-400 fill-none'
                       }`} /> {build.likes}
                     </button>
-                    <span className="text-slate-450">
+                    <span className="text-slate-400">
                       💬 {build.comments}
                     </span>
                   </div>

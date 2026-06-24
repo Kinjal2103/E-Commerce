@@ -6,7 +6,7 @@
 
 const express = require('express');
 const productController = require('../controllers/productController');
-const { protect, restrictTo } = require('../middleware/authMiddleware');
+const { protect, restrictTo, optionalProtect } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
@@ -18,7 +18,7 @@ router.route('/')
 // Public reference routes
 router.get('/categories', productController.getCategories);
 router.get('/games', productController.getGames);
-router.get('/community-builds', productController.getCommunityBuilds);
+router.get('/community-builds', optionalProtect, productController.getCommunityBuilds);
 
 // Public read details / Admin modify & remove endpoints
 router.route('/:id')

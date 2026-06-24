@@ -41,3 +41,29 @@ exports.restrictTo = (...roles) => {
     next();
   };
 };
+
+exports.optionalProtect = catchAsync(async (req, res, next) => {
+  let token;
+
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith('Bearer')
+  ) {
+    token = req.headers.authorization.split(' ')[1];
+  }
+
+  if (token) {
+    try {
+      const decoded = await verifyToken(token);
+      const currentUser = await User.findById(decoded.id);
+      if (currentUser) {
+        req.user = currentUser;
+      }
+    } catch (err) {
+      // Ignore token decoding/verification errors and proceed anonymously
+    }
+  }
+
+  next();
+});
+

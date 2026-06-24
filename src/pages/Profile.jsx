@@ -2,6 +2,26 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { User, LogOut, CreditCard, ShoppingBag, Settings, LayoutDashboard, Heart, Wrench, ShieldCheck, Award, Users, Star } from 'lucide-react';
 
+const getUserIdFromToken = () => {
+  const token = localStorage.getItem('token');
+  if (!token || token === 'mock_token_success') return null;
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload).id;
+  } catch (err) {
+    return null;
+  }
+};
+
+const getSavedBuildsKey = () => {
+  const userId = getUserIdFromToken();
+  return userId ? `forge_saved_builds_${userId}` : 'forge_saved_builds_guest';
+};
+
 export default function Profile() {
   const [user, setUser] = useState({
     name: '',
@@ -37,8 +57,36 @@ export default function Profile() {
   useEffect(() => {
     // Load local builds
     try {
-      const storedBuilds = localStorage.getItem('forge_saved_builds');
-      if (storedBuilds) setSavedBuilds(JSON.parse(storedBuilds));
+      const buildsKey = getSavedBuildsKey();
+      
+      // Migrate legacy shared 'forge_saved_builds' to user-scoped slot if present
+      const legacyBuilds = localStorage.getItem('forge_saved_builds');
+      if (legacyBuilds) {
+        const targetStored = localStorage.getItem(buildsKey);
+        let targetBuilds = targetStored ? JSON.parse(targetStored) : [];
+        const parsedLegacy = JSON.parse(legacyBuilds);
+        if (Array.isArray(parsedLegacy)) {
+          parsedLegacy.forEach(legacyBuild => {
+            if (legacyBuild && legacyBuild.id) {
+              const exists = targetBuilds.some(tb => tb.id === legacyBuild.id);
+              if (!exists) {
+                targetBuilds.push(legacyBuild);
+              }
+            }
+          });
+          localStorage.setItem(buildsKey, JSON.stringify(targetBuilds));
+        }
+        localStorage.removeItem('forge_saved_builds');
+      }
+
+      const storedBuilds = localStorage.getItem(buildsKey);
+      if (storedBuilds) {
+        const parsed = JSON.parse(storedBuilds);
+        const cleaned = parsed.filter(b => b && b.id && !String(b.id).startsWith('preseed'));
+        setSavedBuilds(cleaned);
+      } else {
+        setSavedBuilds([]);
+      }
       
       const storedOrders = localStorage.getItem('forge_orders');
       if (storedOrders) setOrders(JSON.parse(storedOrders));
@@ -52,8 +100,12 @@ export default function Profile() {
 
       try {
         setIsLoading(true);
-        const profileRes = await fetch('/api/users/profile', {
-          headers: { 'Authorization': `Bearer ${token}` }
+        const profileRes = await fetch(`/api/users/profile?_cb=${Date.now()}`, {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
         });
         const profileData = await profileRes.json();
 

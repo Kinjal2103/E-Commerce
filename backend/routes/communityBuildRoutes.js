@@ -1,13 +1,13 @@
 const express = require('express');
 const communityBuildController = require('../controllers/communityBuildController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, optionalProtect } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
 // Public routes for fetching posts & rankings
-router.get('/', communityBuildController.getAllCommunityBuilds);
+router.get('/', optionalProtect, communityBuildController.getAllCommunityBuilds);
 router.get('/rankings', communityBuildController.getFeaturedRankings);
-router.get('/:id', communityBuildController.getCommunityBuild);
+router.get('/:id', optionalProtect, communityBuildController.getCommunityBuild);
 router.get('/:id/comments', communityBuildController.getComments);
 
 // Authenticated routes

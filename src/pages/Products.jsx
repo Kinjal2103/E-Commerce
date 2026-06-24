@@ -688,18 +688,19 @@ export default function Products() {
                       </div>
 
                       {/* Image Frame */}
-                      <div
-                        className={`bg-[#0F172A] rounded-xl flex items-center justify-center p-4 border border-white/5 ${
+                      <Link
+                        to={`/product/${product.id}`}
+                        className={`bg-[#0F172A] rounded-xl flex items-center justify-center p-4 border border-white/5 cursor-pointer block overflow-hidden ${
                           isGridView ? 'h-44 w-full mb-4' : 'h-20 w-20 flex-shrink-0'
                         }`}
                       >
                         <img
                           src={product.imageUrl}
                           alt={product.name}
-                          className="max-h-full max-w-full object-contain"
+                          className="max-h-full max-w-full object-contain hover:scale-105 transition-transform duration-300"
                           referrerPolicy="no-referrer"
                         />
-                      </div>
+                      </Link>
 
                       {/* Info Panel */}
                       <div className="text-left flex-1 flex flex-col justify-between w-full">

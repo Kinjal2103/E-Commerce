@@ -394,14 +394,17 @@ export default function Home() {
                 </div>
 
                 {/* Image */}
-                <div className="h-44 w-full bg-[#0F172A] rounded-xl p-4 flex items-center justify-center overflow-hidden mb-4 border border-white/5">
+                <Link
+                  to={`/product/${product.id}`}
+                  className="h-44 w-full bg-[#0F172A] rounded-xl p-4 flex items-center justify-center overflow-hidden mb-4 border border-white/5 cursor-pointer block"
+                >
                   <img
                     src={product.imageUrl}
                     alt={product.name}
                     className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-500"
                     referrerPolicy="no-referrer"
                   />
-                </div>
+                </Link>
 
                 {/* Copy */}
                 <div className="text-left flex-1 flex flex-col">

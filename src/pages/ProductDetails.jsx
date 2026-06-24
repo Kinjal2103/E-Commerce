@@ -38,28 +38,17 @@ export default function ProductDetails() {
     fetchProduct();
   }, [id, localFallback]);
 
-  // Gallery Active Image
-  const [activeImageIdx, setActiveImageIdx] = useState(0);
-  const galleryImages = useMemo(() => {
-    // Generate dummy gallery images based on main image
-    return [
-      product.imageUrl,
-      'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=300&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?q=80&w=300&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?q=80&w=300&auto=format&fit=crop'
-    ];
-  }, [product]);
-
   // Image Zoom states
   const [zoomStyle, setZoomStyle] = useState({ display: 'none', backgroundPosition: '0% 0%' });
 
   const handleMouseMove = (e) => {
+    if (!product) return;
     const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
     const x = ((e.pageX - left - window.scrollX) / width) * 100;
     const y = ((e.pageY - top - window.scrollY) / height) * 100;
     setZoomStyle({
       display: 'block',
-      backgroundImage: `url(${galleryImages[activeImageIdx]})`,
+      backgroundImage: `url(${product.imageUrl})`,
       backgroundPosition: `${x}% ${y}%`,
       backgroundSize: '200%'
     });
@@ -129,6 +118,7 @@ export default function ProductDetails() {
 
   // Static FPS values for GPU / CPU benchmarks
   const benchmarkFPS = useMemo(() => {
+    if (!product) return null;
     const isGPU = product.category === 'GPUs';
     const isCPU = product.category === 'CPUs';
 
@@ -166,31 +156,16 @@ export default function ProductDetails() {
 
       {/* Main Details Section */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 mb-16">
-        {/* Left Gallery */}
-        <div className="lg:col-span-7 flex flex-col-reverse md:flex-row gap-4 h-fit">
-          {/* Thumbnails */}
-          <div className="flex md:flex-col gap-3 flex-wrap">
-            {galleryImages.map((img, idx) => (
-              <button
-                key={idx}
-                onClick={() => setActiveImageIdx(idx)}
-                className={`w-16 h-16 bg-[#111827] border rounded-xl overflow-hidden p-2.5 flex items-center justify-center cursor-pointer transition-all hover:border-blue-400 ${
-                  activeImageIdx === idx ? 'border-blue-400 shadow-sm' : 'border-white/5'
-                }`}
-              >
-                <img src={img} alt="Product Thumbnail" className="max-h-full max-w-full object-contain" referrerPolicy="no-referrer" />
-              </button>
-            ))}
-          </div>
-
+        {/* Left Gallery - Single Image */}
+        <div className="lg:col-span-7 flex gap-4 h-fit">
           {/* Large Image Zoom Area */}
           <div
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
-            className="flex-grow bg-[#111827] border border-white/5 rounded-3xl p-8 flex items-center justify-center min-h-[400px] relative overflow-hidden cursor-crosshair"
+            className="w-full bg-[#111827] border border-white/5 rounded-3xl p-8 flex items-center justify-center min-h-[400px] relative overflow-hidden cursor-crosshair"
           >
             <img
-              src={galleryImages[activeImageIdx]}
+              src={product.imageUrl}
               alt={product.name}
               className="max-h-[380px] max-w-full object-contain"
               referrerPolicy="no-referrer"
@@ -347,8 +322,8 @@ export default function ProductDetails() {
             <div className="space-y-6">
               <div className="glass-panel p-6 rounded-2xl">
                 <h3 className="font-bold text-lg text-white mb-3">Product Overview</h3>
-                <p className="text-slate-400 leading-relaxed">
-                  The {product.name} is engineered to deliver peak computing outputs. Built using next-generation architecture design tokens, it features advanced power regulations, high thermal dispersion, and custom firmware modules designed to maximize stability during prolonged gaming and rendering tasks.
+                <p className="text-slate-300 leading-relaxed whitespace-pre-line">
+                  {product.description || `The ${product.name} is engineered to deliver peak computing outputs. Built using next-generation architecture design tokens, it features advanced power regulations, high thermal dispersion, and custom firmware modules designed to maximize stability during prolonged gaming and rendering tasks.`}
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-8">
                   <div className="bg-[#111827] p-4 rounded-xl border border-white/5 text-center">
@@ -371,13 +346,13 @@ export default function ProductDetails() {
                 <div className="p-6 bg-green-500/5 border border-green-500/20 rounded-2xl text-left">
                   <h4 className="font-bold text-green-400 text-sm mb-3">Pros / Advantages</h4>
                   <ul className="space-y-2 text-xs text-slate-300">
-                    {product.pros.map((pro, i) => <li key={i}>✓ {pro}</li>)}
+                    {(product.pros || []).map((pro, i) => <li key={i}>✓ {pro}</li>)}
                   </ul>
                 </div>
                 <div className="p-6 bg-red-500/5 border border-red-500/20 rounded-2xl text-left">
                   <h4 className="font-bold text-red-400 text-sm mb-3">Cons / Tradeoffs</h4>
                   <ul className="space-y-2 text-xs text-slate-300">
-                    {product.cons.map((con, i) => <li key={i}>✗ {con}</li>)}
+                    {(product.cons || []).map((con, i) => <li key={i}>✗ {con}</li>)}
                   </ul>
                 </div>
               </div>

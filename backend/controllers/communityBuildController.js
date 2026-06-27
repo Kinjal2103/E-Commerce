@@ -5,6 +5,7 @@ const Bookmark = require('../models/bookmarkModel');
 const CloneTracking = require('../models/cloneTrackingModel');
 const { AppError, catchAsync } = require('../middleware/errorMiddleware');
 const mongoose = require('mongoose');
+const { checkCompatibility, estimateFPSForBuild } = require('../services/compatibilityService');
 
 // Helper to update user reputation score based on: (totalLikesReceived * 5) + (showcasePostsCount * 10) + (followersCount * 2)
 const updateReputationScore = async (userId) => {
@@ -17,94 +18,6 @@ const updateReputationScore = async (userId) => {
 
   user.reputationScore = (totalLikesReceived * 5) + (showcasePostsCount * 10) + (followersCount * 2);
   await user.save({ validateBeforeSave: false });
-};
-
-// Helper to estimate FPS based on CPU/GPU details
-const estimateFPS = (cpuName = '', gpuName = '') => {
-  const cpuLower = cpuName.toLowerCase();
-  const gpuLower = gpuName.toLowerCase();
-  
-  let fps1080p = 100;
-  let fps1440p = 70;
-  let fps4K = 35;
-
-  // Ultra high end (RTX 4090 / 5090 / RX 7900 XTX)
-  if (gpuLower.includes('4090') || gpuLower.includes('5090') || gpuLower.includes('7900 xtx') || gpuLower.includes('7900xtx')) {
-    fps1080p = 260;
-    fps1440p = 190;
-    fps4K = 95;
-  }
-  // High end (RTX 4080 / 4070 Ti / RX 7900 XT)
-  else if (gpuLower.includes('4080') || gpuLower.includes('4070 ti') || gpuLower.includes('4070ti') || gpuLower.includes('7900 xt') || gpuLower.includes('7800 xt')) {
-    fps1080p = 200;
-    fps1440p = 145;
-    fps4K = 65;
-  }
-  // Mid range (RTX 4070 / 4060 Ti / RX 7700 XT)
-  else if (gpuLower.includes('4070') || gpuLower.includes('4060') || gpuLower.includes('7600') || gpuLower.includes('6700')) {
-    fps1080p = 140;
-    fps1440p = 95;
-    fps4K = 40;
-  }
-  // Budget range
-  else if (gpuLower.includes('1660') || gpuLower.includes('3050') || gpuLower.includes('580') || gpuLower.includes('5500')) {
-    fps1080p = 80;
-    fps1440p = 50;
-    fps4K = 20;
-  }
-
-  // Adjust slightly for CPU bottlenecks
-  if (cpuLower.includes('i3') || cpuLower.includes('ryzen 3')) {
-    fps1080p = Math.round(fps1080p * 0.8);
-    fps1440p = Math.round(fps1440p * 0.85);
-  } else if (cpuLower.includes('i9') || cpuLower.includes('ryzen 9') || cpuLower.includes('x3d')) {
-    fps1080p = Math.round(fps1080p * 1.15);
-    fps1440p = Math.round(fps1440p * 1.1);
-  }
-
-  return { fps1080p, fps1440p, fps4K };
-};
-
-// Helper to estimate power consumption in Watts
-const estimatePowerConsumption = (cpuName = '', gpuName = '') => {
-  const cpuLower = cpuName.toLowerCase();
-  const gpuLower = gpuName.toLowerCase();
-
-  let cpuWatts = 65;
-  let gpuWatts = 150;
-
-  // CPU Wattage estimation
-  if (cpuLower.includes('i9') || cpuLower.includes('9900') || cpuLower.includes('13900') || cpuLower.includes('14900')) cpuWatts = 150;
-  else if (cpuLower.includes('i7') || cpuLower.includes('7700') || cpuLower.includes('13700') || cpuLower.includes('14700')) cpuWatts = 125;
-  else if (cpuLower.includes('i5') || cpuLower.includes('ryzen 5')) cpuWatts = 95;
-
-  // GPU Wattage estimation
-  if (gpuLower.includes('4090') || gpuLower.includes('5090')) gpuWatts = 450;
-  else if (gpuLower.includes('4080') || gpuLower.includes('3090')) gpuWatts = 320;
-  else if (gpuLower.includes('4070') || gpuLower.includes('3080') || gpuLower.includes('7900')) gpuWatts = 250;
-  else if (gpuLower.includes('4060') || gpuLower.includes('3070') || gpuLower.includes('7800')) gpuWatts = 200;
-
-  // System overhead (RAM, Storage, Fans, Cooler, Motherboard) estimate around 75W
-  return cpuWatts + gpuWatts + 75;
-};
-
-// Helper to validate compatibility socket matching between CPU and Motherboard
-const validateSocketCompatibility = (cpuName = '', mbName = '') => {
-  const cpuLower = cpuName.toLowerCase();
-  const mbLower = mbName.toLowerCase();
-
-  // Socket configurations: Intel LGA 1700 (12th/13th/14th Gen)
-  const isIntelCpu = cpuLower.includes('intel') || cpuLower.includes('core i');
-  const isAmdCpu = cpuLower.includes('amd') || cpuLower.includes('ryzen');
-
-  const isIntelMb = mbLower.includes('z790') || mbLower.includes('b760') || mbLower.includes('z690') || mbLower.includes('h610') || mbLower.includes('b660') || mbLower.includes('lga1700') || mbLower.includes('lga 1700');
-  const isAmdMb = mbLower.includes('x670') || mbLower.includes('b650') || mbLower.includes('a620') || mbLower.includes('x570') || mbLower.includes('b550') || mbLower.includes('am4') || mbLower.includes('am5');
-
-  if ((isIntelCpu && isAmdMb) || (isAmdCpu && isIntelMb)) {
-    return 0; // High incompatibility (CPU and motherboard mismatch socket type)
-  }
-
-  return 100; // Perfect match
 };
 
 /**
@@ -151,18 +64,33 @@ exports.createCommunityBuild = catchAsync(async (req, res, next) => {
     totalCost += product.price;
   }
 
-  // Calculate stats
-  const cpuName = specsSnapshot.cpu.name;
-  const gpuName = specsSnapshot.gpu.name;
-  const mbName = specsSnapshot.motherboard.name;
+  // Calculate stats using compatibilityService
+  const parts = {};
+  for (const slot of requiredSlots) {
+    const prodId = specs[slot];
+    const product = products.find(p => p._id.toString() === prodId.toString() || p.id === prodId);
+    if (product) {
+      parts[slot] = product;
+    }
+  }
 
-  const { fps1080p, fps1440p, fps4K } = estimateFPS(cpuName, gpuName);
-  const powerConsumption = estimatePowerConsumption(cpuName, gpuName);
-  const compatibilityScore = validateSocketCompatibility(cpuName, mbName);
+  const compatibility = checkCompatibility(parts);
+  const fps1080pList = estimateFPSForBuild(parts, '1080p');
+  const fps1440pList = estimateFPSForBuild(parts, '1440p');
+  const fps4KList = estimateFPSForBuild(parts, '4K');
+
+  const fps1080p = Math.round(fps1080pList.reduce((acc, g) => acc + g.fps, 0) / fps1080pList.length) || 100;
+  const fps1440p = Math.round(fps1440pList.reduce((acc, g) => acc + g.fps, 0) / fps1440pList.length) || 70;
+  const fps4K = Math.round(fps4KList.reduce((acc, g) => acc + g.fps, 0) / fps4KList.length) || 35;
+
+  const powerConsumption = compatibility.tdp;
+  const compatibilityScore = compatibility.score;
 
   // Auto-generate tags based on parts if not provided
   const buildTags = tags || [];
   if (buildTags.length === 0) {
+    const cpuName = specsSnapshot.cpu ? specsSnapshot.cpu.name : '';
+    const gpuName = specsSnapshot.gpu ? specsSnapshot.gpu.name : '';
     if (gpuName.toUpperCase().includes('RTX 4090') || gpuName.toUpperCase().includes('RTX4090')) buildTags.push('RTX4090');
     if (gpuName.toUpperCase().includes('5090')) buildTags.push('RTX5090');
     if (cpuName.toUpperCase().includes('X3D')) buildTags.push('GamingKing');
@@ -262,7 +190,8 @@ exports.getAllCommunityBuilds = catchAsync(async (req, res, next) => {
     .populate({
       path: 'author',
       select: 'name email profilePicture bio reputationScore isVerifiedBuilder'
-    });
+    })
+    .lean();
 
   const total = await CommunityBuild.countDocuments(filter);
 

@@ -144,7 +144,8 @@ describe('Community Build Controller Endpoints', () => {
         sort: jest.fn().mockReturnThis(),
         skip: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
-        populate: jest.fn().mockResolvedValue([mockBuild])
+        populate: jest.fn().mockReturnThis(),
+        lean: jest.fn().mockResolvedValue([mockBuild])
       };
       CommunityBuild.find.mockReturnValue(mockFindChain);
       CommunityBuild.countDocuments.mockResolvedValue(1);

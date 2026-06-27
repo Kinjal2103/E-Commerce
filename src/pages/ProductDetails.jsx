@@ -75,36 +75,75 @@ export default function ProductDetails() {
     }
   }, []);
 
-  // Compute product compatibility details
-  const compatibilityReport = useMemo(() => {
-    if (!product) return { compatible: true, details: 'No active builds loaded' };
-    
-    // CPUs & Motherboards Check
-    if (product.category === 'CPUs' && currentBuild.motherboard) {
-      const cpuSocket = product.specs?.['Socket Type'];
-      const mbSocket = currentBuild.motherboard.specs?.['Socket Type'];
-      if (cpuSocket && mbSocket && cpuSocket !== mbSocket) {
-        return { compatible: false, reason: `Socket Conflict: CPU requires ${cpuSocket} but motherboard has ${mbSocket}` };
-      }
-    }
-    if (product.category === 'Motherboards' && currentBuild.cpu) {
-      const cpuSocket = currentBuild.cpu.specs?.['Socket Type'];
-      const mbSocket = product.specs?.['Socket Type'];
-      if (cpuSocket && mbSocket && cpuSocket !== mbSocket) {
-        return { compatible: false, reason: `Socket Conflict: Motherboard has ${mbSocket} but CPU requires ${cpuSocket}` };
-      }
+  const [compatibilityReport, setCompatibilityReport] = useState({ compatible: true, details: 'Checking compatibility...' });
+
+  // Compute product compatibility details via API
+  useEffect(() => {
+    if (!product) return;
+    const selectedCount = Object.values(currentBuild).filter(Boolean).length;
+    if (selectedCount === 0) {
+      setCompatibilityReport({ compatible: true, details: 'Compatible with current components in your build configuration.' });
+      return;
     }
 
-    // RAM & Motherboards Check
-    if (product.category === 'RAM' && currentBuild.motherboard) {
-      const ramType = product.specs?.['Type'];
-      const mbRamType = currentBuild.motherboard.specs?.['RAM Slots'];
-      if (ramType && mbRamType && !mbRamType.includes(ramType)) {
-        return { compatible: false, reason: `Memory Mismatch: RAM is ${ramType} but motherboard slots support ${mbRamType}` };
-      }
-    }
+    const checkProductCompatibility = async () => {
+      try {
+        const categoryToSlot = {
+          'CPUs': 'cpu',
+          'GPUs': 'gpu',
+          'Motherboards': 'motherboard',
+          'RAM': 'ram',
+          'Storage': 'ssd',
+          'Power Supplies': 'psu',
+          'Cases': 'case',
+          'Cooling': 'cooler'
+        };
 
-    return { compatible: true, details: 'Compatible with current components in your build configuration.' };
+        const slotKey = categoryToSlot[product.category];
+        const tempBuild = {};
+        
+        Object.entries(currentBuild).forEach(([slot, p]) => {
+          if (p) tempBuild[slot] = p._id || p.id || p;
+        });
+
+        if (slotKey) {
+          tempBuild[slotKey] = product._id || product.id || product;
+        }
+
+        const res = await fetch('/api/products/compatibility', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            build: tempBuild
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          const alerts = data.compatibility.alerts || [];
+          const errors = alerts.filter(a => a.type === 'error');
+          
+          if (errors.length > 0) {
+            setCompatibilityReport({
+              compatible: false,
+              reason: errors[0].text
+            });
+          } else {
+            const warnings = alerts.filter(a => a.type === 'warning');
+            setCompatibilityReport({
+              compatible: true,
+              details: warnings.length > 0 ? `Compatible (Warning: ${warnings[0].text})` : 'Compatible with all selected components in your build configuration.'
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching compatibility check:', err);
+        setCompatibilityReport({ compatible: true, details: 'Compatible with current components in your build configuration.' });
+      }
+    };
+
+    checkProductCompatibility();
   }, [product, currentBuild]);
 
   const handleBuyNow = () => {

@@ -54,6 +54,16 @@ export default function Builder() {
   // Active FPS Resolution
   const [activeResolution, setActiveResolution] = useState('1440p'); // '1080p' | '1440p' | '4K'
 
+  // Compatibility and FPS Estimations from Backend
+  const [compatibilityEngine, setCompatibilityEngine] = useState({
+    alerts: [{ type: 'info', text: 'Select components to run the compatibility engine.' }],
+    score: 100,
+    tdp: 0,
+    psuWatt: 0
+  });
+  const [fpsEstimations, setFpsEstimations] = useState([]);
+  const [loadingReport, setLoadingReport] = useState(false);
+
   // Fetch reference catalogs
   useEffect(() => {
     const fetchRefData = async () => {
@@ -140,159 +150,57 @@ export default function Builder() {
     return Object.values(build).reduce((acc, item) => acc + (item ? item.price : 0), 0);
   }, [build]);
 
-  // Dynamic compatibility engine checking
-  const compatibilityEngine = useMemo(() => {
-    const alerts = [];
-    let score = 100;
-
-    // Slots completeness count
+  // Query backend compatibility API
+  useEffect(() => {
     const selectedCount = Object.values(build).filter(Boolean).length;
     if (selectedCount === 0) {
-      return { alerts: [{ type: 'info', text: 'Select components to run the compatibility engine.' }], score: 100, tdp: 0, psuWatt: 0 };
-    }
-
-    // Calculated TDP draws
-    let calculatedTDP = 80; // Baseline motherboard & SSD power draw
-    if (build.cpu) {
-      const cpuTdp = parseInt(build.cpu.specs?.['TDP']) || 120;
-      calculatedTDP += cpuTdp;
-    }
-    if (build.gpu) {
-      const gpuTdp = parseInt(build.gpu.specs?.['TDP']) || 250;
-      calculatedTDP += gpuTdp;
-    }
-    if (build.cooler && build.cooler.specs?.['Radiator Size']) {
-      calculatedTDP += 25; // AIO Liquid cooler pumps draw extra power
-    }
-
-    // PSU check
-    let psuWatt = 0;
-    if (build.psu) {
-      psuWatt = parseInt(build.psu.specs?.['Wattage']) || 850;
-      if (psuWatt < calculatedTDP) {
-        score -= 30;
-        alerts.push({
-          type: 'error',
-          text: `Insufficient Wattage: Selected PSU is ${psuWatt}W but estimated load requires at least ${calculatedTDP}W.`
-        });
-      } else if (psuWatt < calculatedTDP + 150) {
-        score -= 10;
-        alerts.push({
-          type: 'warning',
-          text: `Low PSU Overhead: PSU provides ${psuWatt}W. We recommend 150W-200W safety overhead for boost transients.`
-        });
-      } else {
-        alerts.push({
-          type: 'success',
-          text: `PSU Wattage sufficient: ${psuWatt}W provides a safe ${Math.round(((psuWatt - calculatedTDP) / psuWatt) * 100)}% overhead.`
-        });
-      }
-    }
-
-    // CPU and Motherboard socket checks
-    if (build.cpu && build.motherboard) {
-      const cpuSocket = build.cpu.specs?.['Socket Type'];
-      const mbSocket = build.motherboard.specs?.['Socket Type'];
-      if (cpuSocket && mbSocket && cpuSocket !== mbSocket) {
-        score -= 40;
-        alerts.push({
-          type: 'error',
-          text: `Socket Conflict: CPU requires socket ${cpuSocket} but motherboard has socket ${mbSocket}.`
-        });
-      } else {
-        alerts.push({
-          type: 'success',
-          text: `Compatible Sockets: CPU and Motherboard both support socket ${cpuSocket || mbSocket}.`
-        });
-      }
-    }
-
-    // RAM slots compatibility checking (DDR5 vs DDR4)
-    if (build.ram && build.motherboard) {
-      const ramType = build.ram.specs?.['Type'];
-      const mbRamSlots = build.motherboard.specs?.['RAM Slots'];
-      if (ramType && mbRamSlots && !mbRamSlots.includes(ramType)) {
-        score -= 30;
-        alerts.push({
-          type: 'error',
-          text: `RAM Mismatch: RAM modules are ${ramType} but Motherboard supports ${mbRamSlots}.`
-        });
-      } else {
-        alerts.push({
-          type: 'success',
-          text: `Compatible memory slots: RAM standard matches Motherboard slots.`
-        });
-      }
-    }
-
-    // Cabinet Case GPU length clearance check
-    if (build.gpu && build.case) {
-      const gpuLen = parseInt(build.gpu.specs?.['Length']) || 300;
-      const caseLen = parseInt(build.case.specs?.['Max GPU Length']) || 400;
-      if (gpuLen > caseLen) {
-        score -= 20;
-        alerts.push({
-          type: 'error',
-          text: `Cabinet Space Conflict: Case fits up to ${caseLen}mm GPUs but selected GPU length is ${gpuLen}mm.`
-        });
-      } else {
-        alerts.push({
-          type: 'success',
-          text: `GPU Clearance verified: GPU fits comfortably inside the selected case.`
-        });
-      }
-    }
-
-    // If no warnings, add general success logs
-    if (alerts.filter(a => a.type === 'error').length === 0 && score === 100) {
-      alerts.unshift({ type: 'success', text: 'All checked components are compatible!' });
-    }
-
-    return {
-      alerts,
-      score: Math.max(10, score),
-      tdp: calculatedTDP,
-      psuWatt
-    };
-  }, [build]);
-
-  // FPS Estimator calculations
-  const fpsEstimations = useMemo(() => {
-    const estimations = [];
-    
-    // CPU Coeff
-    let cpuCoeff = 0.2;
-    if (build.cpu) {
-      const cpuId = build.cpu.id || build.cpu._id || '';
-      if (cpuId.includes('14900k')) cpuCoeff = 1.0;
-      else if (cpuId.includes('7800x3d')) cpuCoeff = 1.05;
-      else cpuCoeff = 0.9;
-    }
-    
-    // GPU Coeff
-    let gpuCoeff = 0.15;
-    if (build.gpu) {
-      const gpuId = build.gpu.id || build.gpu._id || '';
-      if (gpuId.includes('4090')) gpuCoeff = 1.0;
-      else if (gpuId.includes('7900xtx')) gpuCoeff = 0.85;
-      else gpuCoeff = 0.72;
-    }
-
-    const resolutionFactors = { '1080p': 1.15, '1440p': 0.82, '4K': 0.44 };
-    const resFactor = resolutionFactors[activeResolution];
-
-    gamesList.forEach((game) => {
-      const baseFps = game.resolutionFPS?.['1440p'] || 100; // standard baseline
-      // Calculate dynamic FPS based on hardware choice
-      const estimatedFps = Math.round(baseFps * cpuCoeff * gpuCoeff * (resFactor / 0.82));
-      estimations.push({
-        name: game.name,
-        fps: estimatedFps
+      setCompatibilityEngine({
+        alerts: [{ type: 'info', text: 'Select components to run the compatibility engine.' }],
+        score: 100,
+        tdp: 0,
+        psuWatt: 0
       });
-    });
+      setFpsEstimations([]);
+      return;
+    }
 
-    return estimations;
-  }, [build, activeResolution, gamesList]);
+    const fetchCompatibility = async () => {
+      setLoadingReport(true);
+      try {
+        const mappedBuild = {};
+        Object.entries(build).forEach(([slot, product]) => {
+          if (product) {
+            mappedBuild[slot] = product._id || product.id || product;
+          } else {
+            mappedBuild[slot] = null;
+          }
+        });
+
+        const res = await fetch('/api/products/compatibility', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            build: mappedBuild,
+            activeResolution
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          setCompatibilityEngine(data.compatibility);
+          setFpsEstimations(data.fpsEstimations);
+        }
+      } catch (err) {
+        console.error('Error fetching compatibility checks:', err);
+      } finally {
+        setLoadingReport(false);
+      }
+    };
+
+    const timer = setTimeout(fetchCompatibility, 300);
+    return () => clearTimeout(timer);
+  }, [build, activeResolution]);
 
   // Save current build to profile saved list
   const handleSaveBuild = () => {

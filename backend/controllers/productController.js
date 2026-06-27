@@ -3,6 +3,7 @@ const CommunityBuild = require('../models/communityBuildModel');
 const APIFeatures = require('../utils/apiFeatures');
 const { GAMES } = require('../data/referenceData');
 const { AppError, catchAsync } = require('../middleware/errorMiddleware');
+const { checkCompatibility, estimateFPSForBuild } = require('../services/compatibilityService');
 
 const computeDynamicFilters = async (queryString) => {
   const baseQuery = {};
@@ -253,6 +254,51 @@ exports.getCommunityBuilds = catchAsync(async (req, res, next) => {
   res.status(200).json({
     success: true,
     communityBuilds: builds
+  });
+});
+
+exports.checkBuildCompatibility = catchAsync(async (req, res, next) => {
+  const { build, activeResolution = '1440p' } = req.body;
+
+  if (!build || typeof build !== 'object') {
+    return next(new AppError('Please provide a build configuration object.', 400));
+  }
+
+  const slots = ['cpu', 'motherboard', 'gpu', 'ram', 'ssd', 'psu', 'case', 'cooler', 'storage'];
+  const activeIds = [];
+  const slotToIdMap = {};
+
+  for (const slot of slots) {
+    const val = build[slot];
+    if (val) {
+      const id = typeof val === 'string' ? val : (val._id || val.id);
+      if (id) {
+        activeIds.push(id);
+        slotToIdMap[slot] = id;
+      }
+    }
+  }
+
+  const products = await Product.find({ _id: { $in: activeIds } }).lean();
+
+  const parts = {};
+  for (const slot of slots) {
+    const id = slotToIdMap[slot];
+    if (id) {
+      const prod = products.find(p => p._id.toString() === id.toString());
+      if (prod) {
+        parts[slot] = prod;
+      }
+    }
+  }
+
+  const compatibility = checkCompatibility(parts);
+  const fpsEstimations = estimateFPSForBuild(parts, activeResolution);
+
+  res.status(200).json({
+    success: true,
+    compatibility,
+    fpsEstimations
   });
 });
 

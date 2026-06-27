@@ -19,6 +19,7 @@ router.route('/')
 router.get('/categories', productController.getCategories);
 router.get('/games', productController.getGames);
 router.get('/community-builds', optionalProtect, productController.getCommunityBuilds);
+router.post('/compatibility', productController.checkBuildCompatibility);
 
 // Public read details / Admin modify & remove endpoints
 router.route('/:id')

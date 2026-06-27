@@ -22,6 +22,19 @@ app.use(cors());
 // Parse incoming JSON request payloads
 app.use(express.json());
 
+// Add to app.js
+app.use((req, res, next) => {
+  const start = Date.now();
+  
+  // Hook into response finish event
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`[API Performance] ${req.method} ${req.originalUrl} - Total: ${duration}ms`);
+  });
+  
+  next();
+});
+
 // API Health Check Route
 app.get('/api/health', (req, res) => {
   res.status(200).json({

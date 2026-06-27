@@ -2,119 +2,10 @@ const ChatLog = require('../models/chatLogModel');
 const Product = require('../models/productModel');
 const { extractIntent, generateResponse } = require('../services/geminiService');
 const { AppError, catchAsync } = require('../middleware/errorMiddleware');
-
-const checkCompatibility = (parts) => {
-  const issues = [];
-  const details = {};
-
-  const { cpu, gpu, motherboard, ram, storage, psu, case: pcCase, cooler } = parts;
-
-  // 1. CPU & Motherboard socket compatibility
-  if (cpu && motherboard) {
-    const cpuSocket = cpu.specs?.socket || cpu.specs?.['Socket Type'];
-    const mbSocket = motherboard.specs?.socket || motherboard.specs?.['Socket Type'];
-    if (cpuSocket && mbSocket && cpuSocket.trim().toUpperCase() !== mbSocket.trim().toUpperCase()) {
-      issues.push(`CPU socket (${cpuSocket}) is incompatible with Motherboard socket (${mbSocket}).`);
-    } else {
-      details.socketMatch = true;
-    }
-  }
-
-  // 2. RAM & Motherboard type compatibility
-  if (ram && motherboard) {
-    const ramType = ram.specs?.type || ram.specs?.['Type'];
-    const mbRamType = motherboard.specs?.memory_type || motherboard.specs?.['RAM Slots'];
-    if (ramType && mbRamType && ramType.trim().toUpperCase() !== mbRamType.trim().toUpperCase()) {
-      issues.push(`RAM type (${ramType}) is incompatible with Motherboard RAM type (${mbRamType}).`);
-    } else {
-      details.ramTypeMatch = true;
-    }
-  }
-
-  // 3. PSU wattage sufficiency
-  if (psu) {
-    let estPower = 75; // System overhead
-    if (cpu) estPower += Number(cpu.specs?.tdp_watts) || Number(cpu.specs?.TDP?.replace('W', '')) || 65;
-    if (gpu) estPower += Number(gpu.specs?.tdp_watts) || Number(gpu.specs?.TDP?.replace('W', '')) || 150;
-
-    const psuWattage = Number(psu.specs?.wattage) || Number(psu.specs?.Wattage?.replace('W', '')) || 0;
-    
-    details.estimatedPowerWatts = estPower;
-    details.psuWattage = psuWattage;
-
-    if (psuWattage > 0) {
-      if (psuWattage < estPower + 100) {
-        issues.push(`PSU wattage (${psuWattage}W) may be insufficient for the estimated system power load of ${estPower}W. Recommend at least ${estPower + 100}W.`);
-      }
-      if (gpu && gpu.specs?.recommended_psu_watts && psuWattage < Number(gpu.specs.recommended_psu_watts)) {
-        issues.push(`PSU wattage (${psuWattage}W) is lower than the GPU manufacturer's recommended wattage of ${gpu.specs.recommended_psu_watts}W.`);
-      }
-    }
-  }
-
-  // 4. Cooler socket compatibility
-  if (cooler && cpu) {
-    const cpuSocket = cpu.specs?.socket || cpu.specs?.['Socket Type'];
-    const coolerSockets = cooler.specs?.socket_compatibility || [];
-    if (cpuSocket && coolerSockets.length > 0) {
-      const isCompat = coolerSockets.some(s => s.trim().toUpperCase() === cpuSocket.trim().toUpperCase());
-      if (!isCompat) {
-        issues.push(`Cooler does not officially support CPU socket ${cpuSocket}. Supported sockets: ${coolerSockets.join(', ')}.`);
-      } else {
-        details.coolerSocketMatch = true;
-      }
-    }
-  }
-
-  // 5. Case Form Factor compatibility
-  if (pcCase && motherboard) {
-    const mbForm = motherboard.specs?.form_factor || motherboard.specs?.['Form Factor'];
-    const caseSupport = pcCase.specs?.motherboard_support || [];
-    if (mbForm && caseSupport.length > 0) {
-      const isCompat = caseSupport.some(s => s.trim().toUpperCase() === mbForm.trim().toUpperCase());
-      if (!isCompat) {
-        issues.push(`Motherboard form factor (${mbForm}) is not supported by the Case (supports: ${caseSupport.join(', ')}).`);
-      } else {
-        details.formFactorMatch = true;
-      }
-    }
-  }
-
-  // 6. Case clearance - GPU length
-  if (pcCase && gpu) {
-    const gpuLenStr = gpu.specs?.Length || gpu.specs?.length_mm || '';
-    const gpuLen = Number(gpuLenStr.replace('mm', '')) || 0;
-    const maxGpu = Number(pcCase.specs?.max_gpu_length_mm) || Number(pcCase.specs?.['Max GPU Length']?.replace('mm', '')) || 0;
-
-    if (gpuLen > 0 && maxGpu > 0 && gpuLen > maxGpu) {
-      issues.push(`GPU length (${gpuLen}mm) exceeds the maximum GPU length supported by the Case (${maxGpu}mm).`);
-    } else {
-      details.gpuLengthFits = true;
-    }
-  }
-
-  // 7. Case clearance - Cooler height
-  if (pcCase && cooler) {
-    const coolerHeightStr = cooler.specs?.height_mm || '';
-    const coolerHeight = Number(coolerHeightStr) || 0;
-    const maxCooler = Number(pcCase.specs?.max_cpu_cooler_height_mm) || 0;
-
-    if (coolerHeight > 0 && maxCooler > 0 && coolerHeight > maxCooler) {
-      issues.push(`CPU cooler height (${coolerHeight}mm) exceeds the maximum CPU cooler height supported by the Case (${maxCooler}mm).`);
-    } else {
-      details.coolerHeightFits = true;
-    }
-  }
-
-  return {
-    compatible: issues.length === 0,
-    issues,
-    details
-  };
-};
+const { checkCompatibility } = require('../services/compatibilityService');
 
 const findProductsInMessage = async (message) => {
-  const allProducts = await Product.find({}, 'name brand category price specs');
+  const allProducts = await Product.find({}, 'name brand category price specs').lean();
   const mentioned = [];
   const msgLower = message.toLowerCase();
   
@@ -201,7 +92,7 @@ const getRelevantProducts = async (intent, searchString) => {
 const recommendBuildForBudget = async (budget, purpose) => {
   const targetBudget = budget || 100000;
   
-  const allProducts = await Product.find({});
+  const allProducts = await Product.find({}).select('name brand category price specs').lean();
   
   const cpus = allProducts.filter(p => p.category === 'CPUs');
   const gpus = allProducts.filter(p => p.category === 'GPUs');
